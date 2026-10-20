@@ -105,6 +105,12 @@ function SocialService.friendCount(player: Player): number
 	return count
 end
 
+-- True if the two players (both in this server) are Roblox friends.
+function SocialService.areFriends(a: Player, b: Player): boolean
+	local friends = friendsOf[a]
+	return friends ~= nil and friends[b] == true
+end
+
 -- Extra coins per coin pickup for playing with friends.
 function SocialService.coinBonus(player: Player): number
 	return math.min(SocialService.friendCount(player), Social.maxFriendsCounted)

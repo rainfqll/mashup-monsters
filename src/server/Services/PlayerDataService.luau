@@ -19,10 +19,11 @@ local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local ProfileStore = require(ServerStorage.ServerPackages.ProfileStore)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Shelf = require(ReplicatedStorage.Shared.Config.Shelf)
+local Trading = require(ReplicatedStorage.Shared.Config.Trading)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 -- Bump CURRENT_VERSION and add a step to migrate() whenever the save shape changes.
-local CURRENT_VERSION = 4
+local CURRENT_VERSION = 5
 
 export type PlayerData = {
 	version: number,
@@ -53,6 +54,8 @@ export type PlayerData = {
 	dailyBundleDay: number,
 	-- v4: Secret Mashups ever stitched, for the creature book
 	secretsFound: { [string]: true },
+	-- v5: partId -> os.time() until which it can't be traded (fresh Legendary+ parts)
+	tradeLockUntil: { [string]: number },
 }
 
 local TEMPLATE: PlayerData = {
@@ -71,6 +74,7 @@ local TEMPLATE: PlayerData = {
 	shelfUpdatedAt = 0,
 	dailyBundleDay = 0,
 	secretsFound = {},
+	tradeLockUntil = {},
 }
 
 -- Onboarding funnel steps (Roblox AnalyticsService), logged once per player in this order.
@@ -140,6 +144,8 @@ local function migrate(data: PlayerData): ()
 		-- v2 -> v3: anyone who already stitched a creature has done what the tutorial teaches.
 		data.tutorialDone = #data.creatures > 0
 	end
+	-- v4 -> v5 needs no step: tradeLockUntil starts empty (Reconcile adds it), so parts found
+	-- before trading existed are tradable.
 	if data.version < 4 then
 		-- v3 -> v4: anyone who already swam to Lily Lagoon keeps it on the travel pads.
 		if data.funnel.FirstNewIsland then
@@ -219,6 +225,12 @@ local function sanitize(data: PlayerData): ()
 	if not isCount(data.shelfStored) then
 		data.shelfStored = 0
 	end
+	local now = os.time()
+	for partId, untilTime in data.tradeLockUntil do
+		if type(partId) ~= "string" or not isCount(untilTime) or untilTime <= now then
+			data.tradeLockUntil[partId] = nil
+		end
+	end
 end
 
 -- Coins per hour from every saved creature that is not out (those sit on the lab shelf).
@@ -289,6 +301,7 @@ local function sendSnapshot(player: Player): ()
 		shelfRate = shelfRate(profile.Data),
 		shelfCap = shelfRate(profile.Data) * Shelf.capHours,
 		shelfUpdatedAt = profile.Data.shelfUpdatedAt,
+		tradeLockUntil = table.clone(profile.Data.tradeLockUntil),
 	}
 	snapshotRemote:FireClient(player, snapshot)
 end
@@ -391,6 +404,10 @@ function PlayerDataService.addPart(
 	local inventory = profile.Data.inventory
 	inventory[partId] = (inventory[partId] or 0) + amount
 	profile.Data.discovered[partId] = true
+	local definition = Parts.get(partId) :: Types.PartDefinition
+	if Trading.lockedRarities[definition.rarity] then
+		profile.Data.tradeLockUntil[partId] = os.time() + Trading.lockSeconds
+	end
 
 	sendSnapshot(player)
 	if not quiet then
@@ -533,6 +550,85 @@ function PlayerDataService.claimDailyBundle(player: Player, partId: string): (bo
 	end
 	profile.Data.dailyBundleDay = today
 	PlayerDataService.addPart(player, partId, 1, true)
+	return true, nil
+end
+
+-- Counts how many of each part an offer uses.
+local function countOffer(offer: { string }): { [string]: number }
+	local counts: { [string]: number } = {}
+	for _, partId in offer do
+		counts[partId] = (counts[partId] or 0) + 1
+	end
+	return counts
+end
+
+-- Can this player put these loose parts into a trade? Returns (ok, reason).
+function PlayerDataService.canOffer(player: Player, offer: { string }): (boolean, string?)
+	local profile = activeProfile(player)
+	if profile == nil then
+		return false, "Your lab is still loading."
+	end
+	local now = os.time()
+	for partId, count in countOffer(offer) do
+		if Parts.get(partId) == nil or (profile.Data.inventory[partId] or 0) < count then
+			return false, "You don't have that part anymore."
+		end
+		local lockedUntil = profile.Data.tradeLockUntil[partId]
+		if lockedUntil ~= nil and lockedUntil > now then
+			local hours = math.ceil((lockedUntil - now) / 3600)
+			return false, `That part is too new to trade. Try again in {hours} h.`
+		end
+	end
+	return true, nil
+end
+
+-- Swaps two players' offers in one step: every check passes before anything changes, then
+-- both inventories change together and both saves are written right away, so a trade can't
+-- lose or copy a part. Offers must already be checked lists of part ids.
+function PlayerDataService.executeTrade(
+	a: Player,
+	aGives: { string },
+	b: Player,
+	bGives: { string }
+): (boolean, string?)
+	local profileA = activeProfile(a)
+	local profileB = activeProfile(b)
+	if profileA == nil or profileB == nil then
+		return false, "A lab is still loading. Try again!"
+	end
+	local okA, reasonA = PlayerDataService.canOffer(a, aGives)
+	if not okA then
+		return false, reasonA
+	end
+	local okB, reasonB = PlayerDataService.canOffer(b, bGives)
+	if not okB then
+		return false, reasonB
+	end
+
+	local function move(from: PlayerData, to: PlayerData, offer: { string }): ()
+		for partId, count in countOffer(offer) do
+			local remaining = from.inventory[partId] - count
+			from.inventory[partId] = if remaining > 0 then remaining else nil
+			to.inventory[partId] = (to.inventory[partId] or 0) + count
+			to.discovered[partId] = true
+			local definition = Parts.get(partId) :: Types.PartDefinition
+			if Trading.lockedRarities[definition.rarity] then
+				to.tradeLockUntil[partId] = os.time() + Trading.lockSeconds
+			end
+		end
+	end
+	move(profileA.Data, profileB.Data, aGives)
+	move(profileB.Data, profileA.Data, bGives)
+
+	for _, profile in { profileA, profileB } do
+		pcall(function()
+			profile:Save()
+		end)
+	end
+	sendSnapshot(a)
+	sendSnapshot(b)
+	PlayerDataService.recordMilestone(a, "FirstCoopAction")
+	PlayerDataService.recordMilestone(b, "FirstCoopAction")
 	return true, nil
 end
 

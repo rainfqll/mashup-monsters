@@ -99,6 +99,22 @@ export type PlayerSnapshot = {
 	shelfRate: number,
 	shelfCap: number,
 	shelfUpdatedAt: number,
+	-- partId -> os.time() until which that part can't be traded (fresh Legendary+ finds)
+	tradeLockUntil: { [string]: number },
+}
+
+-- One open trade as one player sees it (sent by TradeService).
+export type TradeView = {
+	partnerUserId: number,
+	partnerName: string,
+	myOffer: { string },
+	theirOffer: { string },
+	myReady: boolean,
+	theirReady: boolean,
+	-- Seconds left on the final countdown, or nil when it is not running.
+	countdown: number?,
+	-- Short status line, e.g. "Trade done!" or why something was refused.
+	message: string?,
 }
 
 return {}

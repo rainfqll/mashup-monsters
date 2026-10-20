@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
+local Trading = require(ReplicatedStorage.Shared.Config.Trading)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local ChallengeController = require(script.Parent.ChallengeController)
 local CreatureController = require(script.Parent.CreatureController)
@@ -17,6 +18,7 @@ local Daily = require(ReplicatedStorage.Shared.Daily)
 local DataController = require(script.Parent.DataController)
 local IslandController = require(script.Parent.IslandController)
 local PingController = require(script.Parent.PingController)
+local TradeController = require(script.Parent.TradeController)
 local TutorialController = require(script.Parent.TutorialController)
 local BookScreen = require(script.Parent.Parent.UI.BookScreen)
 local BundleScreen = require(script.Parent.Parent.UI.BundleScreen)
@@ -26,6 +28,8 @@ local Panel = require(script.Parent.Parent.UI.Panel)
 local PingMenu = require(script.Parent.Parent.UI.PingMenu)
 local RevealOverlay = require(script.Parent.Parent.UI.RevealOverlay)
 local StitchScreen = require(script.Parent.Parent.UI.StitchScreen)
+local TradeInvite = require(script.Parent.Parent.UI.TradeInvite)
+local TradeScreen = require(script.Parent.Parent.UI.TradeScreen)
 local Theme = require(script.Parent.Parent.UI.Theme)
 
 local STITCH_PROMPT_TAG = "StitchPrompt"
@@ -54,7 +58,10 @@ function UIController.start(): ()
 	local stitch = StitchScreen.create(screen, hud.showMessage)
 	local reveal = RevealOverlay.create(screen)
 	local bundle = BundleScreen.create(screen, reveal, hud.showMessage)
-	local panels: { Panel.Panel } = { inventory.panel, book.panel, stitch.panel, bundle.panel }
+	local trade = TradeScreen.create(screen)
+	local tradeInvite = TradeInvite.create(screen)
+	local panels: { Panel.Panel } =
+		{ inventory.panel, book.panel, stitch.panel, bundle.panel, trade.panel }
 
 	local function openOnly(target: Panel.Panel): ()
 		for _, panel in panels do
@@ -144,6 +151,22 @@ function UIController.start(): ()
 	end)
 	ChallengeController.onStatusChanged(hud.setStatus)
 
+	TradeController.onInvite(function(fromUserId, fromName)
+		tradeInvite.show(fromName, Trading.inviteSeconds, function(accept)
+			TradeController.respond(fromUserId, accept)
+		end)
+	end)
+	TradeController.onStateChanged(function(view)
+		if view ~= nil and not trade.panel.isOpen() then
+			for _, panel in panels do
+				if panel ~= trade.panel then
+					panel.close()
+				end
+			end
+		end
+		trade.show(view)
+	end)
+
 	local pingMenu = PingMenu.create(hud.pingButton, PingController.ping, function(emoteId)
 		if not PingController.emote(emoteId) then
 			hud.showMessage("Hop off your creature to do that!", Color3.fromRGB(60, 150, 255))
@@ -211,6 +234,7 @@ function UIController.start(): ()
 		book.render(snapshot)
 		stitch.render(snapshot)
 		bundle.render(snapshot)
+		trade.render(snapshot)
 		hud.setCoins(snapshot.coins)
 		bundleUnlocked = #snapshot.creatures > 0 or snapshot.tutorialDone
 		syncBundlePrompts()

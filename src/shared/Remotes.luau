@@ -46,6 +46,21 @@ local DEFINITIONS: { [string]: RemoteKind } = {
 	Ping = "Event",
 	-- Server -> all clients: (userId, displayName, kind, position) show a ping marker.
 	PingShown = "Event",
+	-- Trading (TradeService checks everything; the client only asks).
+	-- Client -> server: (userId) ask a nearby friend to trade.
+	TradeRequest = "Event",
+	-- Server -> client: (fromUserId, displayName) someone wants to trade with you.
+	TradeInvite = "Event",
+	-- Client -> server: (fromUserId, accept) answer an invite.
+	TradeRespond = "Event",
+	-- Client -> server: ({ partId }) what you put in (max Trading.maxItems).
+	TradeSetOffer = "Event",
+	-- Client -> server: (ready) press or un-press Ready.
+	TradeReady = "Event",
+	-- Client -> server: () close the trade.
+	TradeCancel = "Event",
+	-- Server -> client: (TradeView?) the whole trade as you see it; nil when it closes.
+	TradeState = "Event",
 }
 
 local FOLDER_NAME = "Remotes"
