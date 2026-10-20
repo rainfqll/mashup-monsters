@@ -21,6 +21,8 @@ local HEADER_HEIGHT = 56
 local TAB_HEIGHT = 48
 local GAP = 10
 local MIN_CARD_WIDTH = 120
+-- Card height / width.
+local CARD_ASPECT = 1.15
 
 local OPEN_INFO = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
@@ -221,14 +223,20 @@ function InventoryScreen.create(parent: ScreenGui): InventoryScreen
 	empty.Parent = panel
 
 	-- Reflow instead of shrinking: more columns on wide screens, at least 3 on a phone.
+	-- On short landscape phones, also add columns until a whole card fits the visible height,
+	-- otherwise every card shows cut in half.
 	local function resizeCells(): ()
 		local width = grid.AbsoluteSize.X - 20 - grid.ScrollBarThickness
-		if width <= 0 then
+		local height = grid.AbsoluteSize.Y - 12
+		if width <= 0 or height <= 0 then
 			return
 		end
+		local maxCellWidth = math.max(MIN_CARD_WIDTH * 0.75, height / CARD_ASPECT)
 		local columns = math.clamp(math.floor(width / (MIN_CARD_WIDTH + GAP)), 3, 6)
+		columns =
+			math.clamp(math.max(columns, math.ceil((width + GAP) / (maxCellWidth + GAP))), 3, 8)
 		local cellWidth = math.floor((width - GAP * (columns - 1)) / columns)
-		gridLayout.CellSize = UDim2.fromOffset(cellWidth, math.floor(cellWidth * 1.15))
+		gridLayout.CellSize = UDim2.fromOffset(cellWidth, math.floor(cellWidth * CARD_ASPECT))
 	end
 	grid:GetPropertyChangedSignal("AbsoluteSize"):Connect(resizeCells)
 

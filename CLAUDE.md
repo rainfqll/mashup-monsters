@@ -18,8 +18,9 @@ Original IP only, no Toolbox scripts.
 - **Rojo 7.7.1**: code is files on disk, synced into Studio. Git owns the code.
 - **Rokit** pins tools in `rokit.toml`: rojo, wally, selene, stylua. luau-lsp comes from the VS Code extension.
 - **Wally** for packages (`wally.toml`). Server-only libraries go in `[server-dependencies]` and install to `ServerPackages/`.
-- **ProfileStore** for player data (to be added in Phase 1: verify the Wally package name/version first,
-  then add `ServerPackages` to `default.project.json` under ServerStorage).
+- **ProfileStore** (`lm-loleris/profilestore@1.0.3`, the official package) for player data, mapped at
+  `ServerStorage.ServerPackages`. Only `PlayerDataService` touches it. Store `PlayerData_Studio` in Studio,
+  `PlayerData` live; keys `player_<UserId>`; save schema has a `version` field + `migrate()`.
 - Roblox skills from `TabooHarmony/roblox-brain` in `.agents/skills` (linked in `.claude/skills`).
   Load `roblox-collaboration-mode` first, then the domain skill (gui, architecture, networking, security, data, luau-types, game-design...).
 
@@ -40,12 +41,12 @@ src/
   server/      -> ServerScriptService.Server   init.server.luau = only server Script, starts services in order
     Services/  PlayerDataService, PartService, StitchService, CreatureService, TradeService, CrewService
   client/      -> StarterPlayerScripts.Client  init.client.luau = only LocalScript, starts controllers in order
-    Controllers/ InputController, UIController, CreatureController, PingController
-    UI/        (added in Phase 1)
+    Controllers/ InputController, DataController, UIController, PickupController, CreatureController, PingController
+    UI/        Theme (shared look helpers), Hud (bag button, part toast), InventoryScreen
   shared/      -> ReplicatedStorage.Shared
     Types.luau   Slot, Rarity, PartStats, PartDefinition
     Remotes.luau the ONLY place remotes are declared; server calls Remotes.createAll() at startup
-    Config/      (added in Phase 1: Parts, Rarities, Abilities, Islands, Combos)
+    Config/      Parts, Rarities (later: Abilities, Islands, Combos)
 docs/          GAME_DESIGN.md (spec), HOW_TO_SYNC.md (user setup steps)
 ```
 
@@ -82,17 +83,29 @@ Plus, when the Studio MCP is connected: sync, `start_stop_play`, `get_console_ou
 
 ## Current phase
 
-**Phase 0: Setup: DONE.** The user cloned the repo on their Mac (`~/Documents/mashup-monsters`), Rojo
-syncs, and Play shows "server ready (6 services)" and "client ready (4 controllers)" in Output.
-Repo: https://github.com/rainfqll/mashup-monsters (public).
+**Phase 0: Setup: DONE.** Repo: https://github.com/rainfqll/mashup-monsters (public).
 
-**Next: Phase 1 (Parts and inventory)**, in Claude Code on the Mac with the Studio MCP connected.
-Start by showing the user a short Phase 1 plan and any decisions (multiple choice), then wait for OK.
+**Phase 1: Parts and inventory: DONE (awaiting user review).** Verified in Studio with real DataStore
+access: collect parts on Meadow Isle, stop, play again, inventory still there.
+- Pickups: Studio-owned invisible BaseParts tagged `PickupSpot` with a `PartId` attribute
+  (`Workspace.MeadowIsle.PickupSpots`). `PartService` builds a glowing pickup on each; collecting uses the
+  server's own Touched (no collect remote) + distance check; pickups are pooled and respawn after 30 s.
+- Remotes: `ClientReady` (client->server once), `DataSnapshot` and `PartCollected` (server->client).
+- Placeholder Meadow Isle was built in Studio via MCP (floating disc, hills, trees). The template
+  Baseplate was moved to ServerStorage, not deleted. Studio API access is ON and the place is published.
+- Spec change: parts have `abilities: { Ability }` (a list) instead of one `ability`.
+- Deferred: button sounds (juice pass), slot icons instead of tab words, real part models/icons (Phase 2),
+  analytics funnel events (with the tutorial in Phase 3), device-emulator check by the user.
+
+**Next: Phase 2 (Stitch Station and creatures).** Start with a short plan + decisions, then wait for OK.
 
 Notes for the next session:
 - The user is on a Mac without Homebrew. Pushing from the Mac needs GitHub sign-in: the GitHub CLI `.pkg`
-  from https://cli.github.com, then `gh auth login`. Help them set this up before the first push.
+  from https://cli.github.com, then `gh auth login`. Commits through Phase 1 are local until this is set up.
 - Harmless Studio noise in Output (not ours, ignore): `ContentId rbxassetid://203785492 ... Asset type
-  does not match`, `Asset id 12946311200 should reference a Folder Instance named R15Anim`, and
-  `CorePackages...ReactFiberWorkLoop` stack traces (x5, Client). Our messages start with `[Mashup Monsters]`.
+  does not match`, `Asset id 12946311200 should reference a Folder Instance named R15Anim`,
+  `[profilestore]: Roblox API services available`, and `UIBlox FoundationProvider` / `CorePackages...`
+  stack traces. Our messages start with `[Mashup Monsters]`.
 - Rojo must be connected in Edit mode (not during Play). On connect, Rojo may ask to Accept changes.
+  Claude can start `rojo serve` itself; the user clicks Connect in the Rojo plugin.
+- The Studio MCP `studio_id` changes when Studio reloads (e.g. after publishing): call `list_roblox_studios` again.
