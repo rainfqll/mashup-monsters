@@ -240,6 +240,7 @@ local function sendSnapshot(player: Player): ()
 		funnel = table.clone(profile.Data.funnel),
 		unlockedIslands = table.clone(profile.Data.unlockedIslands),
 		challengesDone = table.clone(profile.Data.challengesDone),
+		secretsFound = table.clone(profile.Data.secretsFound),
 	}
 	snapshotRemote:FireClient(player, snapshot)
 end
@@ -516,6 +517,10 @@ function PlayerDataService.stitch(player: Player, loadout: Types.Loadout): (bool
 	end
 	table.insert(data.creatures, table.clone(loadout))
 	data.activeCreature = #data.creatures
+	local secret = Creatures.findSecret(loadout)
+	if secret ~= nil then
+		data.secretsFound[secret.id] = true
+	end
 
 	sendSnapshot(player)
 	notifyActiveChanged(player)

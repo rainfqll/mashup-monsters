@@ -13,6 +13,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Abilities = require(ReplicatedStorage.Shared.Config.Abilities)
+local Combos = require(ReplicatedStorage.Shared.Config.Combos)
 local CreatureAssembler = require(ReplicatedStorage.Shared.CreatureAssembler)
 local Creatures = require(ReplicatedStorage.Shared.Creatures)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -95,6 +96,30 @@ local function addLights(model: Model, summary: Types.CreatureSummary): ()
 		light.Shadows = false
 		light.Parent = hitbox
 	end
+end
+
+-- Secret Mashups sparkle in their own colour so other players notice them.
+local function addAura(model: Model, summary: Types.CreatureSummary): ()
+	local secret = if summary.secret ~= nil then Combos.getSecret(summary.secret) else nil
+	if secret == nil then
+		return
+	end
+	model:SetAttribute("Secret", secret.id)
+	local aura = Instance.new("ParticleEmitter")
+	aura.Name = "SecretAura"
+	aura.Color = ColorSequence.new(secret.auraColor)
+	aura.LightEmission = 1
+	aura.Rate = 28
+	aura.Lifetime = NumberRange.new(1, 1.6)
+	aura.Speed = NumberRange.new(2, 4)
+	aura.SpreadAngle = Vector2.new(180, 180)
+	aura.Acceleration = Vector3.new(0, 3, 0)
+	aura.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.8),
+		NumberSequenceKeypoint.new(0.5, 1.2),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	aura.Parent = model.PrimaryPart
 end
 
 local function rideNumbers(summary: Types.CreatureSummary): (number, number)
@@ -243,6 +268,7 @@ local function spawnCreature(player: Player, loadout: Types.Loadout): ()
 	model:SetAttribute("GlideStat", summary.stats.glide)
 	model:SetAttribute("Riding", false)
 	addLights(model, summary)
+	addAura(model, summary)
 
 	local hitbox = model.PrimaryPart :: BasePart
 	local followAttachment = Instance.new("Attachment")

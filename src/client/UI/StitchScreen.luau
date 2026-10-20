@@ -53,7 +53,12 @@ local function abilityText(summary: Types.CreatureSummary): string
 		table.insert(names, ABILITY_LABELS[ability] or ability)
 	end
 	table.sort(names)
-	return if #names > 0 then table.concat(names, " + ") else "No special moves"
+	local text = if #names > 0 then table.concat(names, " + ") else "No special moves"
+	-- Set bonuses are worth pointing out: they are why matching animals is a good idea.
+	for _, animal in summary.sets do
+		text ..= `  ·  {animal} set!`
+	end
+	return text
 end
 
 local StitchScreen = {}
@@ -324,7 +329,12 @@ function StitchScreen.create(parent: ScreenGui, showMessage: (string, Color3?) -
 		else
 			preview.show(selection)
 			local summary = Creatures.summarize(selection)
-			creatureName.Text = summary.name
+			creatureName.Text = if summary.secret ~= nil
+				then `Secret: {summary.name}!`
+				else summary.name
+			creatureName.TextColor3 = if summary.secret ~= nil
+				then Rarities.Secret.color
+				else Theme.colors.text
 			abilitiesLabel.Text = abilityText(summary)
 		end
 
@@ -462,10 +472,14 @@ function StitchScreen.create(parent: ScreenGui, showMessage: (string, Color3?) -
 			end)
 			stitching = false
 			if ok and result == true then
-				local name = Creatures.summarize(request).name
+				local summary = Creatures.summarize(request)
 				selection = {}
 				panel.close()
-				showMessage(`{name} is alive!`, Theme.colors.lime)
+				if summary.secret ~= nil then
+					showMessage(`Secret Mashup! {summary.name}!`, Rarities.Secret.color)
+				else
+					showMessage(`{summary.name} is alive!`, Theme.colors.lime)
+				end
 			else
 				local reason = if ok and type(message) == "string"
 					then message

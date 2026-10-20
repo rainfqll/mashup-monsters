@@ -3,6 +3,7 @@
 -- called, and which abilities and stats it has. The server uses parseLoadout on every
 -- request and every save, so a bad loadout can never be stitched or loaded.
 
+local Combos = require(script.Parent.Config.Combos)
 local Parts = require(script.Parent.Config.Parts)
 local Types = require(script.Parent.Types)
 
@@ -75,11 +76,32 @@ function Creatures.definitions(loadout: Loadout): { Types.PartDefinition }
 	return definitions
 end
 
+local STAT_KEYS = { "speed", "jump", "swim", "glide", "carry" }
+
+-- The Secret Mashup this loadout makes, if any: every slot in the recipe must match.
+function Creatures.findSecret(loadout: Loadout): Combos.SecretDefinition?
+	for _, secret in Combos.secrets do
+		local matches = true
+		for slot, partId in secret.recipe :: { [string]: string } do
+			if (loadout :: any)[slot] ~= partId then
+				matches = false
+				break
+			end
+		end
+		if matches then
+			return secret
+		end
+	end
+	return nil
+end
+
 -- A funny name from the first word of each part: Duck Head + Frog Legs -> "Duck-Frog".
+-- A Secret Mashup uses its secret name instead.
 function Creatures.summarize(loadout: Loadout): Types.CreatureSummary
 	local words: { string } = {}
 	local abilities: { [Types.Ability]: true } = {}
 	local stats: Types.PartStats = { speed = 0, jump = 0, swim = 0, glide = 0, carry = 0 }
+	local byAnimal: { [string]: { Types.PartDefinition } } = {}
 
 	for _, definition in Creatures.definitions(loadout) do
 		local word = string.match(definition.displayName, "^%S+") or definition.displayName
@@ -90,17 +112,43 @@ function Creatures.summarize(loadout: Loadout): Types.CreatureSummary
 		for _, ability in definition.abilities do
 			abilities[ability] = true
 		end
-		stats.speed += definition.stats.speed
-		stats.jump += definition.stats.jump
-		stats.swim += definition.stats.swim
-		stats.glide += definition.stats.glide
-		stats.carry += definition.stats.carry
+		for _, key in STAT_KEYS do
+			(stats :: any)[key] += (definition.stats :: any)[key]
+		end
+		local animal = definition.animal
+		if animal ~= nil then
+			local group = byAnimal[animal] or {}
+			table.insert(group, definition)
+			byAnimal[animal] = group
+		end
 	end
 
+	-- Set bonus: each extra part of one animal boosts the stats that animal's parts give.
+	local sets: { string } = {}
+	for animal, group in byAnimal do
+		if #group >= 2 then
+			table.insert(sets, animal)
+			local bonus = (#group - 1) * Combos.setBonusPerExtraPart
+			for _, key in STAT_KEYS do
+				local fromSet = 0
+				for _, definition in group do
+					fromSet += (definition.stats :: any)[key]
+				end
+				if fromSet > 0 then
+					(stats :: any)[key] += bonus
+				end
+			end
+		end
+	end
+	table.sort(sets)
+
+	local secret = Creatures.findSecret(loadout)
 	return {
-		name = table.concat(words, "-"),
+		name = if secret ~= nil then secret.displayName else table.concat(words, "-"),
 		abilities = abilities,
 		stats = stats,
+		sets = sets,
+		secret = if secret ~= nil then secret.id else nil,
 	}
 end
 

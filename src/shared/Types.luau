@@ -69,7 +69,12 @@ export type Loadout = {
 export type CreatureSummary = {
 	name: string,
 	abilities: { [Ability]: true },
+	-- Includes set bonuses.
 	stats: PartStats,
+	-- Animals with 2+ parts on this creature (set bonuses), sorted.
+	sets: { string },
+	-- Secret Mashup id (Config/Combos) if the parts match a recipe.
+	secret: string?,
 }
 
 -- What the server sends the client about its own save. A copy, never the live save table.
@@ -85,6 +90,7 @@ export type PlayerSnapshot = {
 	funnel: { [string]: true },
 	unlockedIslands: { [string]: true },
 	challengesDone: { [string]: true },
+	secretsFound: { [string]: true },
 }
 
 return {}

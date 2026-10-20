@@ -16,6 +16,8 @@ export type Options = {
 	locked: boolean?,
 	-- Makes the card a TextButton (for pickers) instead of a Frame.
 	clickable: boolean?,
+	-- Replaces the bottom line (rarity, or slot when locked), e.g. "Secret" for book secrets.
+	label: string?,
 }
 
 local PartCard = {}
@@ -71,7 +73,7 @@ function PartCard.create(definition: Types.PartDefinition, options: Options?): G
 	rarity.AnchorPoint = Vector2.new(0.5, 1)
 	rarity.Position = UDim2.fromScale(0.5, 0.95)
 	rarity.Size = UDim2.fromScale(0.8, 0.14)
-	rarity.Text = if locked then definition.slot else definition.rarity
+	rarity.Text = opts.label or (if locked then definition.slot else definition.rarity)
 	Theme.text(rarity, 16)
 	rarity.TextColor3 = if locked then Theme.colors.textDim else rarityColor
 	rarity.Parent = card

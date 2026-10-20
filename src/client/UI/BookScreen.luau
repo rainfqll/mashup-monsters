@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Combos = require(ReplicatedStorage.Shared.Config.Combos)
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -33,6 +34,22 @@ table.sort(ENTRIES, function(a, b)
 	return Rarities[a.rarity].order < Rarities[b.rarity].order
 end)
 
+-- Secret Mashups go after the parts, shown as cards in their aura colour once stitched.
+-- The card needs a PartDefinition, so each secret gets a display-only one.
+local SECRET_CARDS: { Types.PartDefinition } = {}
+for _, secret in Combos.secrets do
+	table.insert(SECRET_CARDS, {
+		id = `Secret_{secret.id}`,
+		displayName = secret.displayName,
+		slot = "Body",
+		rarity = "Secret",
+		abilities = {},
+		stats = { speed = 0, jump = 0, swim = 0, glide = 0, carry = 0 },
+		modelName = "",
+		colorTheme = secret.auraColor,
+	})
+end
+
 local BookScreen = {}
 
 function BookScreen.create(parent: ScreenGui): BookScreen
@@ -44,7 +61,7 @@ function BookScreen.create(parent: ScreenGui): BookScreen
 	progress.Name = "Progress"
 	progress.AnchorPoint = Vector2.new(1, 0)
 	progress.Position = UDim2.new(1, -(Panel.HEADER_HEIGHT + gap), 0, 4)
-	progress.Size = UDim2.new(0.3, 0, 0, Panel.HEADER_HEIGHT - 8)
+	progress.Size = UDim2.new(0.45, 0, 0, Panel.HEADER_HEIGHT - 8)
 	Theme.text(progress, 26)
 	progress.BackgroundTransparency = 0
 	progress.BackgroundColor3 = Theme.colors.limeDark
@@ -71,7 +88,20 @@ function BookScreen.create(parent: ScreenGui): BookScreen
 			card.LayoutOrder = index
 			card.Parent = grid
 		end
-		progress.Text = `Found {found} / {#ENTRIES}`
+		local secretsFound = 0
+		for index, secret in Combos.secrets do
+			local stitched = snapshot.secretsFound[secret.id] == true
+			if stitched then
+				secretsFound += 1
+			end
+			local card = PartCard.create(SECRET_CARDS[index], {
+				locked = not stitched,
+				label = if stitched then "Secret Mashup" else "Secret",
+			})
+			card.LayoutOrder = #ENTRIES + index
+			card.Parent = grid
+		end
+		progress.Text = `Parts {found}/{#ENTRIES}  Secrets {secretsFound}/{#Combos.secrets}`
 	end
 
 	panel.onOpened(function()
