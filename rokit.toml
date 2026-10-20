@@ -1,0 +1,7 @@
+# Pinned tool versions. Run `rokit install` after cloning so everyone uses the same versions.
+# luau-lsp comes from the VS Code extension (see .vscode/extensions.json), so it is not pinned here.
+[tools]
+rojo = "rojo-rbx/rojo@7.7.1"
+wally = "UpliftGames/wally@0.3.2"
+selene = "Kampfkarren/selene@0.32.0"
+stylua = "JohnnyMorganz/StyLua@2.5.2"

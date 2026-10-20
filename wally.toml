@@ -1,0 +1,10 @@
+[package]
+name = "mashupmonsters/mashup-monsters"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+private = true
+
+# Server-only libraries install to ServerPackages/ (never replicated to clients).
+# ProfileStore is added in Phase 1, once its exact Wally package name and version are verified.
+[server-dependencies]
