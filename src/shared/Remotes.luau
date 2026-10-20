@@ -12,7 +12,14 @@ local RunService = game:GetService("RunService")
 export type RemoteKind = "Event" | "UnreliableEvent" | "Function"
 
 local DEFINITIONS: { [string]: RemoteKind } = {
-	-- Added per phase, e.g. Phase 1: CollectPart = "Event",
+	-- Client -> server, once: "my UI is listening, send my data". Lets the snapshot never
+	-- arrive before the client is ready for it. No arguments are read.
+	ClientReady = "Event",
+	-- Server -> client: full copy of the player's own coins and inventory (small, so no diffs).
+	DataSnapshot = "Event",
+	-- Server -> client: (partId) the player just collected, for the pop-up and button bounce.
+	-- Collecting itself needs no remote: the server detects the touch.
+	PartCollected = "Event",
 }
 
 local FOLDER_NAME = "Remotes"

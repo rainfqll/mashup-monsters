@@ -6,5 +6,6 @@ realm = "shared"
 private = true
 
 # Server-only libraries install to ServerPackages/ (never replicated to clients).
-# ProfileStore is added in Phase 1, once its exact Wally package name and version are verified.
+# ProfileStore: session-locked saving by loleris (official package, not a fork).
 [server-dependencies]
+ProfileStore = "lm-loleris/profilestore@1.0.3"

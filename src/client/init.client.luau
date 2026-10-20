@@ -8,7 +8,10 @@ type Controller = { start: () -> () }
 
 local START_ORDER: { Controller } = {
 	require(Controllers.InputController),
+	-- Before UI, so screens can subscribe to data as they are built.
+	require(Controllers.DataController),
 	require(Controllers.UIController),
+	require(Controllers.PickupController),
 	require(Controllers.CreatureController),
 	require(Controllers.PingController),
 }
