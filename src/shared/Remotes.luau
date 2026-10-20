@@ -20,6 +20,15 @@ local DEFINITIONS: { [string]: RemoteKind } = {
 	-- Server -> client: (partId) the player just collected, for the pop-up and button bounce.
 	-- Collecting itself needs no remote: the server detects the touch.
 	PartCollected = "Event",
+	-- Client -> server: (loadout) stitch these parts at a nearby station. Returns
+	-- (ok: boolean, message: string?) so the screen can show why a stitch was refused.
+	Stitch = "Function",
+	-- Client -> server: (index) take creature apart at a nearby station; parts return to the bag.
+	Unstitch = "Event",
+	-- Client -> server: (index) which saved creature is out; 0 puts it away.
+	SetActiveCreature = "Event",
+	-- Client -> server: () hop on or off your creature. The server checks distance.
+	ToggleRide = "Event",
 }
 
 local FOLDER_NAME = "Remotes"

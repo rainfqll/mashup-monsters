@@ -31,6 +31,8 @@ end
 
 function Theme.outline(parent: GuiObject, thickness: number?, color: Color3?): UIStroke
 	local stroke = Instance.new("UIStroke")
+	-- Named so code can find the border and not the text outline Theme.text adds.
+	stroke.Name = "Border"
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Thickness = thickness or 4
 	stroke.Color = color or Theme.colors.outline
@@ -79,6 +81,21 @@ function Theme.pressable(button: GuiButton): UIScale
 		end
 	end)
 	return scale
+end
+
+-- The standard chunky button. Wire behaviour to .Activated (works for touch, mouse, gamepad).
+function Theme.button(name: string, text: string, maxText: number): TextButton
+	local button = Instance.new("TextButton")
+	button.Name = name
+	button.Text = text
+	button.AutoButtonColor = false
+	Theme.text(button, maxText)
+	button.BackgroundTransparency = 0
+	button.BackgroundColor3 = Theme.colors.purple
+	Theme.corner(button)
+	Theme.outline(button, 3)
+	Theme.pressable(button)
+	return button
 end
 
 -- A quick grow-and-settle, used to draw the eye (e.g. the bag after a pickup).

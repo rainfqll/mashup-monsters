@@ -42,11 +42,16 @@ src/
     Services/  PlayerDataService, PartService, StitchService, CreatureService, TradeService, CrewService
   client/      -> StarterPlayerScripts.Client  init.client.luau = only LocalScript, starts controllers in order
     Controllers/ InputController, DataController, UIController, PickupController, CreatureController, PingController
-    UI/        Theme (shared look helpers), Hud (bag button, part toast), InventoryScreen
+    UI/        Theme, Panel (standard pop-up), PartCard (card + reflowing grid), Hud, InventoryScreen,
+               BookScreen, StitchScreen, CreaturePreview (spinning ViewportFrame)
   shared/      -> ReplicatedStorage.Shared
     Types.luau   Slot, Rarity, PartStats, PartDefinition
     Remotes.luau the ONLY place remotes are declared; server calls Remotes.createAll() at startup
-    Config/      Parts, Rarities (later: Abilities, Islands, Combos)
+    Config/      Parts, Rarities, Abilities (riding/glide tuning) (later: Islands, Combos)
+    Creatures.luau        loadout rules: parseLoadout (validates untrusted input), summarize, MAX_SAVED
+    CreatureAssembler.luau builds a creature Model from PartModels by snapping attachments
+  server/RateLimit.luau  per-player remote cooldowns
+tools/build_part_models.luau  rebuilds ReplicatedStorage.PartModels in Studio (git backup of the models)
 docs/          GAME_DESIGN.md (spec), HOW_TO_SYNC.md (user setup steps)
 ```
 
@@ -97,11 +102,31 @@ access: collect parts on Meadow Isle, stop, play again, inventory still there.
 - Deferred: button sounds (juice pass), slot icons instead of tab words, real part models/icons (Phase 2),
   analytics funnel events (with the tutorial in Phase 3), device-emulator check by the user.
 
-**Next: Phase 2 (Stitch Station and creatures).** Start with a short plan + decisions, then wait for OK.
+**Phase 2: Stitch Station and creatures: DONE (awaiting user review).** Verified in Studio: stitch at the
+station, creature follows, ride/hop off, super jump, glide, swim gate (bounce without Swim, allowed with
+Swim, wading counts as water), respawn while riding, unstitch returns parts, book, save v2 + rejoin,
+server rejects bad stitch requests (far, wrong slot, not owned, junk).
+- Decisions: stitched parts move into the creature and come back on unstitch; 3 saved creatures, 1 out;
+  Ride button (hop on/off); free Stitchy Blob body when Body is empty; any slot may be empty (min 1 part).
+- Save v2: `creatures` (loadouts), `activeCreature` (0 = none), `discovered` (book). v1 migrates by marking
+  inventory parts discovered; unparseable creatures are taken apart into the inventory, never deleted.
+- Remotes added: `Stitch` (Function, returns ok + message), `Unstitch`, `SetActiveCreature`, `ToggleRide`.
+- Studio world (not in git): `ReplicatedStorage.PartModels` (17 models; rebuild with tools/build_part_models.luau),
+  `MeadowIsle.Lab` with `StitchStation` (the Table part is tagged `StitchStation`), `MeadowIsle.TestPond`
+  (raised pool + terrain water, for swim testing until Lily Lagoon).
+- Riding: server welds creature under the HumanoidRootPart, sets HipHeight = seatOffset.Y + halfHeight and
+  WalkSpeed/JumpPower from Config/Abilities; client does follow (AlignPosition, player has network
+  ownership), sit animation (from the Animate script), glide (fall-speed cap) and the water gate.
+- Known gaps: the water gate is client-side (fine for progression, an exploiter could skip it; add a server
+  check when islands gate rewards); abilities Dig/Reveal/Climb/Carry/Shield have no gameplay yet;
+  button sounds; device-emulator check by the user; ride button position is a fixed 42% height (verify vs
+  jump button on small phones).
+
+**Next: Phase 3 (First-time experience and the starter islands).** Start with a short plan + decisions.
 
 Notes for the next session:
 - The user is on a Mac without Homebrew. Pushing from the Mac needs GitHub sign-in: the GitHub CLI `.pkg`
-  from https://cli.github.com, then `gh auth login`. Commits through Phase 1 are local until this is set up.
+  from https://cli.github.com, then `gh auth login`. Commits are local until this is set up (not pushed yet).
 - Harmless Studio noise in Output (not ours, ignore): `ContentId rbxassetid://203785492 ... Asset type
   does not match`, `Asset id 12946311200 should reference a Folder Instance named R15Anim`,
   `[profilestore]: Roblox API services available`, and `UIBlox FoundationProvider` / `CorePackages...`

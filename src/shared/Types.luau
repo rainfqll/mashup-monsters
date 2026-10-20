@@ -37,6 +37,8 @@ export type PartDefinition = {
 	stats: PartStats,
 	modelName: string,
 	colorTheme: Color3,
+	-- Free parts (the Stitchy Blob body) are owned by everyone, never run out, and never drop.
+	free: boolean?,
 }
 
 export type RarityInfo = {
@@ -44,10 +46,29 @@ export type RarityInfo = {
 	color: Color3,
 }
 
+-- Which part sits in each slot of a creature. Any slot may be empty; an empty Body means the
+-- free Stitchy Blob.
+export type Loadout = {
+	Head: string?,
+	Body: string?,
+	Legs: string?,
+	Back: string?,
+}
+
+export type CreatureSummary = {
+	name: string,
+	abilities: { [Ability]: true },
+	stats: PartStats,
+}
+
 -- What the server sends the client about its own save. A copy, never the live save table.
 export type PlayerSnapshot = {
 	coins: number,
 	inventory: { [string]: number },
+	creatures: { Loadout },
+	-- Index into `creatures` of the one that is out, or 0 for none.
+	activeCreature: number,
+	discovered: { [string]: true },
 }
 
 return {}

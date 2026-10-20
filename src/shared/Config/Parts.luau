@@ -1,5 +1,6 @@
 --!strict
--- Every creature part in the game. Adding a part = one entry here (plus a model in Phase 2).
+-- Every creature part in the game. Adding a part = one entry here plus a model in
+-- ReplicatedStorage.PartModels (see tools/build_part_models.luau for the model contract).
 -- Ids are saved in player data, so never rename or reuse an id once it has shipped.
 -- Stats are 0-5 and only matter from Phase 2 on; they are rough first-pass numbers.
 
@@ -18,6 +19,19 @@ local function stats(
 end
 
 local LIST: { PartDefinition } = {
+	-- Free starter body: used whenever a creature's Body slot is empty.
+	{
+		id = "StitchyBlob",
+		displayName = "Stitchy Blob",
+		slot = "Body",
+		rarity = "Common",
+		abilities = {},
+		stats = stats(0, 0, 0, 0, 0),
+		modelName = "StitchyBlob",
+		colorTheme = Color3.fromRGB(190, 165, 240),
+		free = true,
+	},
+
 	-- Head
 	{
 		id = "DuckHead",

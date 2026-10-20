@@ -11,25 +11,35 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
+local Creatures = require(ReplicatedStorage.Shared.Creatures)
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local ProfileStore = require(ServerStorage.ServerPackages.ProfileStore)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 -- Bump CURRENT_VERSION and add a step to migrate() whenever the save shape changes.
-local CURRENT_VERSION = 1
+local CURRENT_VERSION = 2
 
 export type PlayerData = {
 	version: number,
 	coins: number,
-	-- partId -> how many the player owns
+	-- partId -> how many loose parts the player owns (parts inside creatures are not counted)
 	inventory: { [string]: number },
+	-- v2: stitched creatures; their parts left the inventory and come back on unstitch
+	creatures: { Types.Loadout },
+	-- v2: index into creatures of the one that is out, 0 = none
+	activeCreature: number,
+	-- v2: every part ever found, for the creature book
+	discovered: { [string]: true },
 }
 
 local TEMPLATE: PlayerData = {
 	version = CURRENT_VERSION,
 	coins = 0,
 	inventory = {},
+	creatures = {},
+	activeCreature = 0,
+	discovered = {},
 }
 
 -- Studio gets its own store so testing never touches real players' saves.
@@ -48,11 +58,19 @@ local readyPlayers: { [Player]: true } = {}
 local snapshotRemote: RemoteEvent
 local collectedRemote: RemoteEvent
 
+type ActiveListener = (Player) -> ()
+local activeListeners: { ActiveListener } = {}
+
 local function isCount(value: unknown): boolean
 	return type(value) == "number" and value == value and value >= 0 and value < math.huge
 end
 
--- Upgrades older saves step by step. Version 1 is the first, so there is nothing to upgrade yet.
+local function isIndex(value: unknown, max: number): boolean
+	return type(value) == "number" and value % 1 == 0 and value >= 0 and value <= max
+end
+
+-- Upgrades older saves one version at a time. Runs after Reconcile(), so fields that are new
+-- in this version already exist (empty) and only need filling in.
 local function migrate(data: PlayerData): ()
 	if data.version > CURRENT_VERSION then
 		-- Saved by a newer server build; leave it untouched rather than downgrading it.
@@ -60,6 +78,12 @@ local function migrate(data: PlayerData): ()
 			`[Mashup Monsters] save version {data.version} is newer than this server ({CURRENT_VERSION})`
 		)
 		return
+	end
+	if data.version < 2 then
+		-- v1 -> v2: everything already owned counts as discovered for the creature book.
+		for partId in data.inventory do
+			data.discovered[partId] = true
+		end
 	end
 	data.version = CURRENT_VERSION
 end
@@ -80,6 +104,41 @@ local function sanitize(data: PlayerData): ()
 			data.inventory[partId] = math.floor(count)
 		end
 	end
+
+	-- A creature that no longer parses (e.g. a part changed slot) is taken apart instead of
+	-- deleted: every part id it held goes back to the inventory.
+	local creatures: { Types.Loadout } = {}
+	for _, raw in data.creatures do
+		local loadout = Creatures.parseLoadout(raw)
+		if loadout ~= nil then
+			table.insert(creatures, loadout)
+		elseif type(raw) == "table" then
+			for _, slot in Creatures.SLOTS do
+				local partId = (raw :: any)[slot]
+				local definition = if type(partId) == "string" then Parts.get(partId) else nil
+				if type(partId) == "string" and (definition == nil or not definition.free) then
+					data.inventory[partId] = (data.inventory[partId] or 0) + 1
+				end
+			end
+		end
+	end
+	data.creatures = creatures
+
+	if not isIndex(data.activeCreature, #data.creatures) then
+		data.activeCreature = 0
+	end
+
+	for partId, value in data.discovered do
+		if type(partId) ~= "string" or value ~= true then
+			data.discovered[partId] = nil
+		end
+	end
+end
+
+local function notifyActiveChanged(player: Player): ()
+	for _, listener in activeListeners do
+		task.spawn(listener, player)
+	end
 end
 
 local function sendSnapshot(player: Player): ()
@@ -87,9 +146,16 @@ local function sendSnapshot(player: Player): ()
 	if profile == nil or not readyPlayers[player] then
 		return
 	end
+	local creatures = {}
+	for index, loadout in profile.Data.creatures do
+		creatures[index] = table.clone(loadout)
+	end
 	local snapshot: Types.PlayerSnapshot = {
 		coins = profile.Data.coins,
 		inventory = table.clone(profile.Data.inventory),
+		creatures = creatures,
+		activeCreature = profile.Data.activeCreature,
+		discovered = table.clone(profile.Data.discovered),
 	}
 	snapshotRemote:FireClient(player, snapshot)
 end
@@ -132,6 +198,7 @@ local function onPlayerAdded(player: Player): ()
 
 	profiles[player] = profile
 	sendSnapshot(player)
+	notifyActiveChanged(player)
 end
 
 local function onPlayerRemoving(player: Player): ()
@@ -166,10 +233,109 @@ function PlayerDataService.addPart(player: Player, partId: string, amount: numbe
 
 	local inventory = profile.Data.inventory
 	inventory[partId] = (inventory[partId] or 0) + amount
+	profile.Data.discovered[partId] = true
 
 	sendSnapshot(player)
 	collectedRemote:FireClient(player, partId)
 	return true
+end
+
+local function activeProfile(player: Player): ProfileStore.Profile<PlayerData>?
+	local profile = profiles[player]
+	if profile == nil or not profile:IsActive() then
+		return nil
+	end
+	return profile
+end
+
+-- Moves the loadout's parts out of the inventory into a new creature and makes it the active
+-- one. `loadout` must already be parsed (Creatures.parseLoadout). All checks happen before any
+-- change, so a refused stitch never touches the save.
+-- Returns (true, nil) or (false, reason) where reason is shown to the player.
+function PlayerDataService.stitch(player: Player, loadout: Types.Loadout): (boolean, string?)
+	local profile = activeProfile(player)
+	if profile == nil then
+		return false, "Your lab is still loading."
+	end
+	local data = profile.Data
+	if #data.creatures >= Creatures.MAX_SAVED then
+		return false, "Your lab is full! Unstitch a creature first."
+	end
+	local partIds = Creatures.partIds(loadout)
+	for _, partId in partIds do
+		if (data.inventory[partId] or 0) < 1 then
+			return false, "You don't have that part anymore."
+		end
+	end
+
+	for _, partId in partIds do
+		local remaining = data.inventory[partId] - 1
+		data.inventory[partId] = if remaining > 0 then remaining else nil
+	end
+	table.insert(data.creatures, table.clone(loadout))
+	data.activeCreature = #data.creatures
+
+	sendSnapshot(player)
+	notifyActiveChanged(player)
+	return true, nil
+end
+
+-- Takes a creature apart: its parts go back to the inventory. `index` is untrusted.
+function PlayerDataService.unstitch(player: Player, index: unknown): boolean
+	local profile = activeProfile(player)
+	if profile == nil then
+		return false
+	end
+	local data = profile.Data
+	if not isIndex(index, #data.creatures) or index == 0 then
+		return false
+	end
+	local slotIndex = index :: number
+
+	local loadout = table.remove(data.creatures, slotIndex) :: Types.Loadout
+	for _, partId in Creatures.partIds(loadout) do
+		data.inventory[partId] = (data.inventory[partId] or 0) + 1
+	end
+	if data.activeCreature == slotIndex then
+		data.activeCreature = 0
+	elseif data.activeCreature > slotIndex then
+		data.activeCreature -= 1
+	end
+
+	sendSnapshot(player)
+	notifyActiveChanged(player)
+	return true
+end
+
+-- Chooses which creature is out; 0 puts it away. `index` is untrusted.
+function PlayerDataService.setActive(player: Player, index: unknown): boolean
+	local profile = activeProfile(player)
+	if profile == nil or not isIndex(index, #profile.Data.creatures) then
+		return false
+	end
+	if profile.Data.activeCreature == index then
+		return true
+	end
+	profile.Data.activeCreature = index :: number
+	sendSnapshot(player)
+	notifyActiveChanged(player)
+	return true
+end
+
+-- The creature that should be out right now, or nil. Returns a copy.
+function PlayerDataService.getActiveLoadout(player: Player): Types.Loadout?
+	local profile = profiles[player]
+	if profile == nil or profile.Data.activeCreature == 0 then
+		return nil
+	end
+	local loadout = profile.Data.creatures[profile.Data.activeCreature]
+	return if loadout ~= nil then table.clone(loadout) else nil
+end
+
+-- Called (on its own thread) whenever a player's active creature may have changed, including
+-- right after their save loads.
+function PlayerDataService.onActiveCreatureChanged(listener: ActiveListener): ()
+	table.insert(activeListeners, listener)
 end
 
 function PlayerDataService.start(): ()
