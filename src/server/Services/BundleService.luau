@@ -7,6 +7,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Bundles = require(ReplicatedStorage.Shared.Config.Bundles)
+local Daily = require(ReplicatedStorage.Shared.Daily)
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -46,7 +47,20 @@ local function roll(): string
 		end
 	end
 	local candidates = partsByRarity[rarity] or partsByRarity.Common :: { string }
-	return candidates[random:NextInteger(1, #candidates)]
+	-- Part of the Day: counts as several tickets in its own rarity's draw.
+	local featured = Daily.partOfTheDay(Daily.today())
+	local tickets = 0
+	for _, partId in candidates do
+		tickets += if partId == featured then Bundles.partOfTheDayWeight else 1
+	end
+	local ticket = random:NextInteger(1, tickets)
+	for _, partId in candidates do
+		ticket -= if partId == featured then Bundles.partOfTheDayWeight else 1
+		if ticket <= 0 then
+			return partId
+		end
+	end
+	return candidates[#candidates]
 end
 
 local function anchorOf(instance: Instance): BasePart?
@@ -72,7 +86,8 @@ local function isNearMachine(player: Player): boolean
 	return false
 end
 
-local function onOpenBundle(player: Player): (string?, string?)
+-- `kind` is "daily" for the free daily bundle, anything else buys one with coins.
+local function onOpenBundle(player: Player, kind: unknown): (string?, string?)
 	if not RateLimit.allow(player, "OpenBundle", 1.5) then
 		return nil, "Slow down a little!"
 	end
@@ -80,7 +95,12 @@ local function onOpenBundle(player: Player): (string?, string?)
 		return nil, "Walk up to the Bundle Machine first."
 	end
 	local partId = roll()
-	local ok, message = PlayerDataService.buyBundle(player, Bundles.price, partId, Bundles.sku)
+	local ok, message
+	if kind == "daily" then
+		ok, message = PlayerDataService.claimDailyBundle(player, partId)
+	else
+		ok, message = PlayerDataService.buyBundle(player, Bundles.price, partId, Bundles.sku)
+	end
 	if not ok then
 		return nil, message
 	end

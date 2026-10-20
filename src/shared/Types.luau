@@ -91,6 +91,14 @@ export type PlayerSnapshot = {
 	unlockedIslands: { [string]: true },
 	challengesDone: { [string]: true },
 	secretsFound: { [string]: true },
+	-- UTC day of the last free daily bundle (Daily.today()), 0 = never
+	dailyBundleDay: number,
+	-- Display shelf: coins waiting, coins per hour now, the cap, and when `shelfStored` was
+	-- worked out (os.time()), so the client can count up between snapshots.
+	shelfStored: number,
+	shelfRate: number,
+	shelfCap: number,
+	shelfUpdatedAt: number,
 }
 
 return {}

@@ -18,6 +18,9 @@ return table.freeze({
 	} :: { Odds }),
 	-- Analytics item name for the purchase.
 	sku = "MysteryBundle",
+	-- Within its rarity, the Part of the Day (Daily.luau) is this many times as likely as each
+	-- other part. Rarity chances stay exactly as shown.
+	partOfTheDayWeight = 3,
 	-- Coins per coin pickup, and how long a taken coin takes to come back.
 	coinPickupValue = 5,
 	coinRespawnSeconds = 20,

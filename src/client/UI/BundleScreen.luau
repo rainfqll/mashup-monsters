@@ -6,6 +6,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Bundles = require(ReplicatedStorage.Shared.Config.Bundles)
+local Daily = require(ReplicatedStorage.Shared.Daily)
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -43,11 +44,20 @@ function BundleScreen.create(
 	Theme.outline(eggArea, 3)
 	eggArea.Parent = panel.body
 
+	-- Part of the Day: the same for everyone today, and more likely inside its rarity.
+	local featured = Instance.new("TextLabel")
+	featured.Name = "PartOfTheDay"
+	featured.Position = UDim2.fromScale(0.04, 0.03)
+	featured.Size = UDim2.fromScale(0.92, 0.16)
+	Theme.text(featured, 20)
+	featured.TextColor3 = Theme.colors.lime
+	featured.Parent = eggArea
+
 	local egg = Instance.new("Frame")
 	egg.Name = "Egg"
 	egg.AnchorPoint = Vector2.new(0.5, 0.5)
-	egg.Position = UDim2.fromScale(0.5, 0.42)
-	egg.Size = UDim2.fromScale(0.45, 0.6)
+	egg.Position = UDim2.fromScale(0.5, 0.48)
+	egg.Size = UDim2.fromScale(0.4, 0.5)
 	egg.BackgroundColor3 = Color3.fromRGB(255, 245, 225)
 	Theme.corner(egg, UDim.new(0.5, 0))
 	Theme.outline(egg, 4)
@@ -119,12 +129,21 @@ function BundleScreen.create(
 	openButton.Size = UDim2.new(1, 0, 0, OPEN_HEIGHT)
 	openButton.Parent = right
 
+	local function dailyReady(): boolean
+		return lastSnapshot ~= nil and lastSnapshot.dailyBundleDay < Daily.today()
+	end
+
 	local function render(): ()
 		local coins = if lastSnapshot ~= nil then lastSnapshot.coins else 0
-		local canAfford = coins >= Bundles.price
+		local free = dailyReady()
+		local canAfford = free or coins >= Bundles.price
 		local ready = canAfford and not opening
+		local today = Parts.get(Daily.partOfTheDay(Daily.today()))
+		featured.Text = if today ~= nil then `Lucky part: {today.displayName}!` else ""
+		price.Text = if free then "FREE today!" else `{Bundles.price} coins`
 		openButton.Text = if opening
 			then "..."
+			elseif free then "Open your FREE bundle!"
 			elseif canAfford then `Open! ({Bundles.price} coins)`
 			else `Need {Bundles.price - coins} more coins`
 		openButton.BackgroundColor3 = if ready
@@ -140,9 +159,10 @@ function BundleScreen.create(
 		opening = true
 		render()
 		local before = lastSnapshot
+		local kind = if dailyReady() then "daily" else nil
 		task.spawn(function()
 			local ok, partId, message = pcall(function()
-				return Remotes.func("OpenBundle"):InvokeServer()
+				return Remotes.func("OpenBundle"):InvokeServer(kind)
 			end)
 			opening = false
 			local definition = if ok and type(partId) == "string" then Parts.get(partId) else nil

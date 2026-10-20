@@ -39,17 +39,19 @@ Original IP only, no Toolbox scripts.
 default.project.json   Rojo mapping (only code folders)
 src/
   server/      -> ServerScriptService.Server   init.server.luau = only server Script, starts services in order
-    Services/  PlayerDataService, PickupService, StitchService, BundleService, CreatureService, IslandService,
-               TradeService, CrewService
+    Services/  PlayerDataService, PickupService, StitchService, BundleService, ShelfService, CreatureService,
+               IslandService, ChallengeService, TradeService, CrewService
   client/      -> StarterPlayerScripts.Client  init.client.luau = only LocalScript, starts controllers in order
     Controllers/ InputController, DataController, UIController, PickupController, CreatureController,
-                 TutorialController, IslandController, PingController
+                 TutorialController, IslandController, ChallengeController, ShelfController, PingController
     UI/        Theme, Panel (standard pop-up), PartCard (card + reflowing grid), Hud, InventoryScreen,
                BookScreen, StitchScreen, CreaturePreview (spinning ViewportFrame), BundleScreen, RevealOverlay
   shared/      -> ReplicatedStorage.Shared
     Types.luau   Slot, Rarity, PartStats, PartDefinition
     Remotes.luau the ONLY place remotes are declared; server calls Remotes.createAll() at startup
-    Config/      Parts, Rarities, Abilities (riding/glide tuning), Bundles (price, odds, coin value) (later: Islands, Combos)
+    Config/      Parts, Rarities, Abilities (riding/glide/updraft tuning), Bundles (price, odds, coin value),
+                 Islands (order + gate ability), Challenges, Combos (set bonus, Secret Mashups), Shelf (coins/hour)
+    Daily.luau   UTC day, daily reset, Part of the Day (same for everyone, no storage)
     Water.luau   terrain-water check at the feet, shared by the client and server water gates
     Creatures.luau        loadout rules: parseLoadout (validates untrusted input), summarize, MAX_SAVED
     CreatureAssembler.luau builds a creature Model from PartModels by snapping attachments
@@ -145,7 +147,28 @@ pre-filled -> stitch -> ride -> river -> Lily Lagoon, all 5 funnel events, coins
 - Known gaps: coins respawn every 20 s, so a lagoon lap pays for a bundle quickly (tune after playtests);
   abilities Dig/Reveal/Climb/Carry/Shield still have no gameplay; button sounds; device-emulator check.
 
-**Next: Phase 4 (see docs/GAME_DESIGN.md).** Start with a short plan + decisions.
+**Phase 4: Progression: DONE (awaiting user review).** Built in 3 milestones (4a islands, 4b combos, 4c daily).
+Verified in Studio: super-jump ledges Lagoon -> Peaks, glide Peaks -> Canyons, gates send non-qualified arrivals home,
+travel pads, summit chest (first reward, then coins + cooldown), Wind Rings course (server-checked, Eagle Wings),
+Night Hopper secret (aura, book, Bat set bonus), shelf display + collect, daily bundle (once per UTC day).
+- Decisions: 8 new parts (Goat/Bat/Eagle/Chicken/Cheetah pairs, first Legendary = Eagle Wings from the ring course);
+  shelf = saved creatures not out, coins/hour by rarity, 8 h cap; daily reset at midnight UTC for everyone; Secret
+  Mashups are looks only (name, aura, book page).
+- Design fix: abilities can't stack across a single creature (Swim and Glide are both Back parts), so islands are
+  linked by travel pads at the lab (unlocked on first legit arrival). Each gate needs exactly one ability.
+- Updrafts (Windy Canyons, tag `Updraft`): gliding inside lifts you, so every glider can finish the ring course.
+- Save v4: unlockedIslands, challengesDone, secretsFound, shelfStored/shelfUpdatedAt, dailyBundleDay. v3 -> v4 keeps
+  Lily Lagoon unlocked for anyone who reached it. The shelf is "settled" before any creature change (no swap exploit).
+- Remotes added: Notice, ChallengeProgress (server -> client); OpenBundle takes "daily".
+- Studio world (not in git): `CliffsidePeaks` (JumpLedges from the Lagoon east edge, Summit pillar + SummitChest,
+  GlideDeck), `WindyCanyons` (mesas, Updrafts, WindRings), `MeadowIsle.TravelPlaza` (3 pads + HomeArrival),
+  `MeadowIsle.DisplayShelf` (Base tagged DisplayShelf, invisible Pedestal1-3 tagged ShelfPedestal), Lagoon `Travel`.
+  Part models: 25 (tools/build_part_models.luau).
+- Known gaps: Glowcap Caves (Light) not built; weekly Secret hint and event parts (later); abilities Dig/Reveal/
+  Climb/Carry/Shield still no gameplay; challenge repeat cooldowns reset on rejoin (a few coins at most);
+  economy numbers are first guesses (tune after playtests).
+
+**Next: Phase 5 (Co-op).** Start with a short plan + decisions.
 
 Notes for the next session:
 - GitHub sign-in is set up on the Mac: `gh` (2.102.0, Intel build under Rosetta) lives in `~/.local/bin`,
@@ -158,4 +181,7 @@ Notes for the next session:
   Claude can start `rojo serve` itself; the user clicks Connect in the Rojo plugin.
 - The Studio MCP `studio_id` changes when Studio reloads (e.g. after publishing): call `list_roblox_studios` again.
 - Studio stops rendering when its window is minimized or hidden: prompts never show and `screen_capture` hangs.
-  Ask the user to keep Studio visible during play tests.
+  Ask the user to keep Studio visible during play tests. `screen_capture` in Edit mode often hangs; use Play mode
+  with `camera_position`. ProximityPrompts only show when their part is on screen: point the camera first.
+- StreamingEnabled is on: client code must handle tagged parts that stream in later (GetInstanceAddedSignal).
+- Test saves: the string attribute `DevStoreSuffix` on ServerStorage switches to a separate Studio store.

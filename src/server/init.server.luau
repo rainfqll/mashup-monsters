@@ -17,6 +17,7 @@ local START_ORDER: { Service } = {
 	require(Services.PickupService),
 	require(Services.StitchService),
 	require(Services.BundleService),
+	require(Services.ShelfService),
 	require(Services.CreatureService),
 	-- After CreatureService: the island and water gates ask it who rides with which ability.
 	require(Services.IslandService),

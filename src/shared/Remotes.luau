@@ -32,7 +32,8 @@ local DEFINITIONS: { [string]: RemoteKind } = {
 	-- Client -> server: (spotName) touched a personal tutorial starter part. Server checks the
 	-- spot is real, the player is next to it, and the tutorial is still running.
 	CollectStarterPart = "Event",
-	-- Client -> server: () buy one mystery bundle at a nearby machine. Returns
+	-- Client -> server: (kind?) open one mystery bundle at a nearby machine: "daily" for the free
+	-- daily one, otherwise it costs coins. Returns
 	-- (partId: string?, message: string?); the roll happens on the server.
 	OpenBundle = "Function",
 	-- Server -> client: (text) a short message for the toast, e.g. why a gate sent you home.

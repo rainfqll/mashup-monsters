@@ -13,10 +13,12 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Creatures = require(ReplicatedStorage.Shared.Creatures)
+local Daily = require(ReplicatedStorage.Shared.Daily)
 local Islands = require(ReplicatedStorage.Shared.Config.Islands)
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local ProfileStore = require(ServerStorage.ServerPackages.ProfileStore)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Shelf = require(ReplicatedStorage.Shared.Config.Shelf)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 -- Bump CURRENT_VERSION and add a step to migrate() whenever the save shape changes.
@@ -43,9 +45,11 @@ export type PlayerData = {
 	unlockedIslands: { [string]: true },
 	-- v4: challenges whose first-time reward was given
 	challengesDone: { [string]: true },
-	-- v4: os.time() when the display shelf was last emptied (Phase 4c)
-	shelfCollectedAt: number,
-	-- v4: UTC day number (os.time() // 86400) of the last free daily bundle, 0 = never
+	-- v4: display shelf coins earned but not collected yet (fractional), and the os.time() they
+	-- were last worked out (0 = never). See settleShelf.
+	shelfStored: number,
+	shelfUpdatedAt: number,
+	-- v4: UTC day (Daily.today()) of the last free daily bundle, 0 = never
 	dailyBundleDay: number,
 	-- v4: Secret Mashups ever stitched, for the creature book
 	secretsFound: { [string]: true },
@@ -63,7 +67,8 @@ local TEMPLATE: PlayerData = {
 	funnel = {},
 	unlockedIslands = {},
 	challengesDone = {},
-	shelfCollectedAt = 0,
+	shelfStored = 0,
+	shelfUpdatedAt = 0,
 	dailyBundleDay = 0,
 	secretsFound = {},
 }
@@ -202,7 +207,7 @@ local function sanitize(data: PlayerData): ()
 	if type(data.tutorialDone) ~= "boolean" then
 		data.tutorialDone = false
 	end
-	for _, field in { "shelfCollectedAt", "dailyBundleDay" } do
+	for _, field in { "shelfUpdatedAt", "dailyBundleDay" } do
 		local value = (data :: any)[field]
 		if not isCount(value) then
 			(data :: any)[field] = 0
@@ -210,6 +215,43 @@ local function sanitize(data: PlayerData): ()
 			(data :: any)[field] = math.floor(value)
 		end
 	end
+	if not isCount(data.shelfStored) then
+		data.shelfStored = 0
+	end
+end
+
+-- Coins per hour from every saved creature that is not out (those sit on the lab shelf).
+local function shelfRate(data: PlayerData): number
+	local rate = 0
+	for index, loadout in data.creatures do
+		if index ~= data.activeCreature then
+			for _, partId in Creatures.partIds(loadout) do
+				local definition = Parts.get(partId)
+				if definition ~= nil then
+					rate += Shelf.coinsPerHour[definition.rarity] or 0
+				end
+			end
+		end
+	end
+	return rate
+end
+
+-- Adds what the shelf earned since it was last worked out, up to the cap. Called before
+-- anything that changes which creatures are on the shelf, so a swap never earns backwards.
+local function settleShelf(data: PlayerData): ()
+	local now = os.time()
+	if data.shelfUpdatedAt <= 0 or data.shelfUpdatedAt > now then
+		data.shelfUpdatedAt = now
+		return
+	end
+	local rate = shelfRate(data)
+	local cap = rate * Shelf.capHours
+	local earned = rate * (now - data.shelfUpdatedAt) / 3600
+	-- Never takes coins away: if a swap lowered the cap below what is stored, it just stops growing.
+	if data.shelfStored < cap then
+		data.shelfStored = math.min(data.shelfStored + earned, cap)
+	end
+	data.shelfUpdatedAt = now
 end
 
 local PlayerDataService = {}
@@ -241,6 +283,11 @@ local function sendSnapshot(player: Player): ()
 		unlockedIslands = table.clone(profile.Data.unlockedIslands),
 		challengesDone = table.clone(profile.Data.challengesDone),
 		secretsFound = table.clone(profile.Data.secretsFound),
+		dailyBundleDay = profile.Data.dailyBundleDay,
+		shelfStored = profile.Data.shelfStored,
+		shelfRate = shelfRate(profile.Data),
+		shelfCap = shelfRate(profile.Data) * Shelf.capHours,
+		shelfUpdatedAt = profile.Data.shelfUpdatedAt,
 	}
 	snapshotRemote:FireClient(player, snapshot)
 end
@@ -267,6 +314,8 @@ local function onPlayerAdded(player: Player): ()
 	profile:Reconcile()
 	migrate(profile.Data)
 	sanitize(profile.Data)
+	-- Counts the time since the last session: the shelf kept earning while they were away.
+	settleShelf(profile.Data)
 
 	profile.OnSessionEnd:Connect(function()
 		profiles[player] = nil
@@ -444,6 +493,48 @@ local function activeProfile(player: Player): ProfileStore.Profile<PlayerData>?
 	return profile
 end
 
+-- Empties the display shelf into the player's coins. Returns the whole coins paid (0 if none
+-- were ready); the fraction stays on the shelf.
+function PlayerDataService.collectShelf(player: Player): number
+	local profile = activeProfile(player)
+	if profile == nil then
+		return 0
+	end
+	local data = profile.Data
+	settleShelf(data)
+	local coins = math.floor(data.shelfStored)
+	if coins < 1 then
+		sendSnapshot(player)
+		return 0
+	end
+	data.shelfStored -= coins
+	PlayerDataService.addCoins(player, coins, "Shelf")
+	return coins
+end
+
+function PlayerDataService.isDailyBundleReady(player: Player): boolean
+	local profile = profiles[player]
+	return profile ~= nil and profile.Data.dailyBundleDay < Daily.today()
+end
+
+-- The free daily bundle: marks today as used and gives the (server-rolled) part in one step.
+function PlayerDataService.claimDailyBundle(player: Player, partId: string): (boolean, string?)
+	local profile = activeProfile(player)
+	if profile == nil then
+		return false, "Your lab is still loading."
+	end
+	local today = Daily.today()
+	if profile.Data.dailyBundleDay >= today then
+		return false, "Today's free bundle is used. Come back tomorrow!"
+	end
+	if Parts.get(partId) == nil then
+		return false, "Something went wrong. Try again!"
+	end
+	profile.Data.dailyBundleDay = today
+	PlayerDataService.addPart(player, partId, 1, true)
+	return true, nil
+end
+
 function PlayerDataService.isIslandUnlocked(player: Player, islandId: string): boolean
 	if islandId == Islands.HOME then
 		return true
@@ -511,6 +602,7 @@ function PlayerDataService.stitch(player: Player, loadout: Types.Loadout): (bool
 		end
 	end
 
+	settleShelf(data)
 	for _, partId in partIds do
 		local remaining = data.inventory[partId] - 1
 		data.inventory[partId] = if remaining > 0 then remaining else nil
@@ -540,6 +632,7 @@ function PlayerDataService.unstitch(player: Player, index: unknown): boolean
 	end
 	local slotIndex = index :: number
 
+	settleShelf(data)
 	local loadout = table.remove(data.creatures, slotIndex) :: Types.Loadout
 	for _, partId in Creatures.partIds(loadout) do
 		data.inventory[partId] = (data.inventory[partId] or 0) + 1
@@ -564,6 +657,7 @@ function PlayerDataService.setActive(player: Player, index: unknown): boolean
 	if profile.Data.activeCreature == index then
 		return true
 	end
+	settleShelf(profile.Data)
 	profile.Data.activeCreature = index :: number
 	sendSnapshot(player)
 	notifyActiveChanged(player)

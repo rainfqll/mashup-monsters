@@ -13,6 +13,7 @@ local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local ChallengeController = require(script.Parent.ChallengeController)
 local CreatureController = require(script.Parent.CreatureController)
+local Daily = require(ReplicatedStorage.Shared.Daily)
 local DataController = require(script.Parent.DataController)
 local IslandController = require(script.Parent.IslandController)
 local TutorialController = require(script.Parent.TutorialController)
@@ -174,7 +175,22 @@ function UIController.start(): ()
 		return Enum.ContextActionResult.Pass
 	end, false, Enum.KeyCode.ButtonB)
 
+	-- One reminder per session when today's free bundle is waiting (not during the tutorial).
+	local dailyReminded = false
 	DataController.onChanged(function(snapshot)
+		if
+			not dailyReminded
+			and snapshot.tutorialDone
+			and snapshot.dailyBundleDay < Daily.today()
+		then
+			dailyReminded = true
+			task.delay(
+				3,
+				hud.showMessage,
+				"Your free daily bundle is ready at the machine!",
+				Theme.colors.lime
+			)
+		end
 		inventory.render(snapshot)
 		book.render(snapshot)
 		stitch.render(snapshot)
