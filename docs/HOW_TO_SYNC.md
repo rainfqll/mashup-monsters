@@ -11,17 +11,30 @@ You do this once per computer. After that, steps 5 to 7 are how you start every 
 
 ## One-time setup
 
+Commands below are for a Mac and go in the **Terminal** app (press Cmd+Space, type *Terminal*).
+
 1. **Install the programs**
    - [Roblox Studio](https://create.roblox.com/)
-   - [Git](https://git-scm.com/downloads)
-   - [VS Code](https://code.visualstudio.com/) (optional but recommended; when you open this folder it
-     offers to install the Luau, Selene, StyLua and Rojo extensions, so click **Install All**)
-   - [Rokit](https://github.com/rojo-rbx/rokit), the tool installer. Follow the install steps in
-     its README, then close and reopen your terminal.
+   - **Git:** run `git --version`. If a popup offers to install the *Command Line Developer Tools*,
+     click **Install**, wait for it to finish, and run the command again.
+   - **GitHub login for Terminal:** install Homebrew (copy the command from https://brew.sh), then:
+     ```
+     brew install gh
+     gh auth login
+     ```
+     Pick **GitHub.com**, then **HTTPS**, answer **Yes** to "Authenticate Git", and log in with the browser.
+   - **Rokit**, the tool installer:
+     ```
+     curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
+     ```
+     Then quit Terminal (Cmd+Q), reopen it, and check that `rokit --version` prints a version.
+   - [VS Code](https://code.visualstudio.com/) is optional but recommended. When you open this folder it
+     offers to install the Luau, Selene, StyLua and Rojo extensions, so click **Install All**.
 
 2. **Get the code**
    ```
-   git clone https://github.com/<your-name>/mashup-monsters.git
+   cd ~/Documents
+   gh repo clone rainfqll/mashup-monsters
    cd mashup-monsters
    ```
 
@@ -67,10 +80,19 @@ Tell Claude what you saw. If anything is red, copy the red lines and paste them 
 
 Run Claude Code on the same computer as Studio, then:
 
-1. In Studio, open the **Assistant**, click **...** and choose **Manage MCP Servers**.
-2. Turn on **Enable Studio as MCP server**. The quick-connect list there includes Claude Code.
-3. Start Claude Code in this project folder. It reads `CLAUDE.md` and `docs/GAME_DESIGN.md`
-   automatically.
+1. Install Claude Code: `curl -fsSL https://claude.ai/install.sh | bash`, then reopen Terminal.
+2. In Studio, open the **Assistant**, click **...** and choose **Manage MCP Servers**.
+3. Turn on **Enable Studio as MCP server**. The quick-connect list there includes Claude Code. If that
+   doesn't work, run this once in Terminal instead:
+   ```
+   cd ~/Documents/mashup-monsters
+   claude mcp add Roblox_Studio -- /Applications/RobloxStudio.app/Contents/MacOS/StudioMCP
+   ```
+4. Start Claude Code in this project folder with `claude`, then type `/mcp`. **Roblox_Studio** should show as
+   connected. Claude reads `CLAUDE.md` automatically.
+
+Keep three things open while you work: Studio with your place, a Terminal running `rojo serve`, and a
+Terminal running `claude`.
 
 ## Where the code appears in Studio
 
