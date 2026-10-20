@@ -82,8 +82,17 @@ Plus, when the Studio MCP is connected: sync, `start_stop_play`, `get_console_ou
 
 ## Current phase
 
-**Phase 0: Setup**. Code skeleton written and lint/format/build-checked in the cloud session.
-Code is pushed to https://github.com/rainfqll/mashup-monsters (public). Waiting on: the user (on a
-Mac, no Homebrew) clones it, follows `docs/HOW_TO_SYNC.md`, and confirms Play shows "server ready" /
-"client ready" with no errors. Then Phase 1 continues in Claude Code on the Mac with the Studio MCP
-connected. Pushing from the Mac will need GitHub sign-in (GitHub CLI `.pkg` from cli.github.com + `gh auth login`).
+**Phase 0: Setup: DONE.** The user cloned the repo on their Mac (`~/Documents/mashup-monsters`), Rojo
+syncs, and Play shows "server ready (6 services)" and "client ready (4 controllers)" in Output.
+Repo: https://github.com/rainfqll/mashup-monsters (public).
+
+**Next: Phase 1 (Parts and inventory)**, in Claude Code on the Mac with the Studio MCP connected.
+Start by showing the user a short Phase 1 plan and any decisions (multiple choice), then wait for OK.
+
+Notes for the next session:
+- The user is on a Mac without Homebrew. Pushing from the Mac needs GitHub sign-in: the GitHub CLI `.pkg`
+  from https://cli.github.com, then `gh auth login`. Help them set this up before the first push.
+- Harmless Studio noise in Output (not ours, ignore): `ContentId rbxassetid://203785492 ... Asset type
+  does not match`, `Asset id 12946311200 should reference a Folder Instance named R15Anim`, and
+  `CorePackages...ReactFiberWorkLoop` stack traces (x5, Client). Our messages start with `[Mashup Monsters]`.
+- Rojo must be connected in Edit mode (not during Play). On connect, Rojo may ask to Accept changes.
