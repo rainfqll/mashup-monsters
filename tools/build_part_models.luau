@@ -329,6 +329,149 @@ end
 attach("TailAttach", Vector3.zero)
 finish()
 
+-- ===== Phase 4: Cliffside Peaks and Windy Canyons =====
+
+begin("GoatHorns")
+part("Root", Vector3.one * 2.8, Vector3.zero, C(235, 230, 220), { shape = "ball" })
+part("Snout", Vector3.new(1.4, 1.1, 1.4), Vector3.new(0, -0.45, -1.2), C(215, 200, 195), { shape = "egg" })
+part("Nose", Vector3.new(0.6, 0.3, 0.3), Vector3.new(0, -0.25, -1.9), C(255, 150, 170), { shape = "egg" })
+part("Beard", Vector3.new(0.5, 0.9, 0.5), Vector3.new(0, -1.45, -1.0), C(200, 195, 185), { shape = "egg" })
+eyes(0.6, 0.45, -1.05, 0.55, 0.3)
+for _, side in { -1, 1 } do
+	part(
+		"Horn",
+		Vector3.new(1.6, 0.45, 0.45),
+		Vector3.new(side * 0.7, 1.55, 0.35),
+		C(150, 120, 90),
+		{ shape = "cyl", rot = UPRIGHT * CFrame.Angles(rad(-35), 0, rad(side * 15)) }
+	)
+	part("HornTip", Vector3.one * 0.45, Vector3.new(side * 0.85, 2.1, 0.85), C(150, 120, 90), { shape = "ball" })
+	part(
+		"Ear",
+		Vector3.new(0.9, 0.35, 0.5),
+		Vector3.new(side * 1.5, 0.5, 0.1),
+		C(235, 230, 220),
+		{ shape = "egg", rot = CFrame.Angles(0, 0, rad(side * -20)) }
+	)
+end
+attach("NeckAttach", Vector3.new(0, -0.9, 0.9))
+finish()
+
+begin("BatEars")
+part("Root", Vector3.one * 2.6, Vector3.zero, C(110, 85, 140), { shape = "ball" })
+part("Muzzle", Vector3.new(1.3, 0.9, 0.9), Vector3.new(0, -0.35, -1.05), C(150, 125, 175), { shape = "egg" })
+eyes(0.55, 0.35, -1.0, 0.6, 0.32)
+for _, side in { -1, 1 } do
+	local tilt = CFrame.Angles(0, 0, rad(side * -25))
+	part("Ear", Vector3.new(1.1, 2.2, 0.35), Vector3.new(side * 1.0, 1.8, 0.1), C(110, 85, 140), { shape = "egg", rot = tilt })
+	part("EarInside", Vector3.new(0.6, 1.5, 0.2), Vector3.new(side * 1.0, 1.75, -0.08), C(255, 160, 190), { shape = "egg", rot = tilt })
+	part("Fang", Vector3.new(0.18, 0.3, 0.18), Vector3.new(side * 0.25, -0.85, -1.35), C(255, 255, 255), { shape = "egg" })
+end
+attach("NeckAttach", Vector3.new(0, -0.8, 0.8))
+finish()
+
+begin("EagleHead")
+part("Root", Vector3.one * 2.8, Vector3.zero, C(250, 250, 245), { shape = "ball" })
+part("Beak", Vector3.new(0.9, 0.8, 1.5), Vector3.new(0, -0.15, -1.6), C(255, 195, 40), { shape = "egg" })
+part("BeakTip", Vector3.new(0.45, 0.6, 0.45), Vector3.new(0, -0.5, -2.2), C(255, 195, 40), { shape = "egg" })
+eyes(0.6, 0.4, -1.05, 0.6, 0.33)
+for _, side in { -1, 1 } do
+	part("Brow", Vector3.new(0.7, 0.2, 0.3), Vector3.new(side * 0.6, 0.85, -1.15), C(200, 160, 60), { rot = CFrame.Angles(0, 0, rad(side * 12)) })
+end
+part("Crest", Vector3.new(0.4, 0.9, 1.2), Vector3.new(0, 1.35, 0.5), C(250, 250, 245), { shape = "egg", rot = CFrame.Angles(rad(30), 0, 0) })
+attach("NeckAttach", Vector3.new(0, -0.9, 0.9))
+finish()
+
+begin("ChickenBody")
+part("Root", Vector3.new(4.2, 4, 5), Vector3.zero, C(250, 245, 235), { shape = "egg" })
+for _, side in { -1, 1 } do
+	part("Wing", Vector3.new(0.7, 2.2, 3), Vector3.new(side * 2.0, 0.1, 0.3), C(240, 230, 215), { shape = "egg" })
+end
+for i, angle in { -25, 0, 25 } do
+	part(
+		"TailFeather",
+		Vector3.new(0.5, 1.8, 0.8),
+		Vector3.new(angle / 40, 1.3 + (i == 2 and 0.3 or 0), 2.5),
+		C(235, 225, 210),
+		{ shape = "egg", rot = CFrame.Angles(rad(-30), 0, rad(angle)) }
+	)
+end
+attach("NeckAttach", Vector3.new(0, 1.0, -2.3))
+attach("HipAttach", Vector3.new(0, -1.8, 0))
+attach("BackAttach", Vector3.new(0, 1.9, 0.2))
+attach("TailAttach", Vector3.new(0, 0.6, 2.5))
+attach("SeatAttach", Vector3.new(0, 2.0, 0))
+finish()
+
+begin("CheetahBody")
+part("Root", Vector3.new(4, 3.2, 6.2), Vector3.zero, C(240, 180, 60), { shape = "egg" })
+part("Belly", Vector3.new(3, 2, 4.8), Vector3.new(0, -0.6, 0), C(255, 230, 180), { shape = "egg" })
+for _, pos in {
+	Vector3.new(-1.2, 1.0, -1.5),
+	Vector3.new(1.0, 1.2, -0.6),
+	Vector3.new(-0.4, 1.5, 0.4),
+	Vector3.new(1.3, 0.8, 1.4),
+	Vector3.new(-1.4, 0.9, 1.2),
+	Vector3.new(0.3, 1.45, 2.0),
+} do
+	part("Spot", Vector3.one * 0.45, pos, C(40, 30, 20), { shape = "ball" })
+end
+attach("NeckAttach", Vector3.new(0, 0.6, -2.9))
+attach("HipAttach", Vector3.new(0, -1.4, 0))
+attach("BackAttach", Vector3.new(0, 1.55, 0.4))
+attach("TailAttach", Vector3.new(0, 0.4, 3.0))
+attach("SeatAttach", Vector3.new(0, 1.6, 0))
+finish()
+
+begin("GoatLegs")
+hiddenRoot()
+for _, x in { -1.2, 1.2 } do
+	for _, z in { -1.4, 1.4 } do
+		part("Leg", Vector3.new(2.4, 0.7, 0.7), Vector3.new(x, -1.2, z), C(235, 230, 220), { shape = "cyl", rot = UPRIGHT })
+		part("Hoof", Vector3.new(0.6, 0.85, 0.85), Vector3.new(x, -2.6, z), C(70, 55, 50), { shape = "cyl", rot = UPRIGHT })
+	end
+end
+attach("HipAttach", Vector3.zero)
+finish()
+
+begin("OwlWings")
+hiddenRoot()
+for _, side in { -1, 1 } do
+	local tilt = CFrame.Angles(0, 0, rad(side * 15))
+	part("Wing", Vector3.new(3.4, 0.4, 2.4), Vector3.new(side * 2.0, 0.6, 0.3), C(180, 130, 70), { shape = "egg", rot = tilt })
+	part("Covert", Vector3.new(2, 0.45, 1.6), Vector3.new(side * 1.5, 0.65, -0.1), C(225, 190, 140), { shape = "egg", rot = tilt })
+	for i = 1, 3 do
+		part(
+			"Feather",
+			Vector3.new(0.5, 0.3, 1.2),
+			Vector3.new(side * (2.6 + i * 0.35), 0.9 + i * 0.12, 0.9),
+			C(140, 95, 50),
+			{ shape = "egg", rot = tilt }
+		)
+	end
+end
+attach("BackAttach", Vector3.zero)
+finish()
+
+begin("EagleWings")
+hiddenRoot()
+for _, side in { -1, 1 } do
+	local tilt = CFrame.Angles(0, 0, rad(side * 12))
+	part("Wing", Vector3.new(4.6, 0.45, 2.6), Vector3.new(side * 2.6, 0.7, 0.3), C(120, 80, 50), { shape = "egg", rot = tilt })
+	part("Covert", Vector3.new(2.4, 0.5, 1.6), Vector3.new(side * 1.7, 0.75, -0.2), C(160, 110, 70), { shape = "egg", rot = tilt })
+	for i = 1, 4 do
+		part(
+			"Feather",
+			Vector3.new(0.55, 0.3, 1.6),
+			Vector3.new(side * (3.4 + i * 0.45), 1.0 + i * 0.15, 0.9),
+			if i == 4 then C(250, 250, 245) else C(95, 60, 35),
+			{ shape = "egg", rot = tilt }
+		)
+	end
+end
+attach("BackAttach", Vector3.zero)
+finish()
+
 local names = {}
 for _, m in folder:GetChildren() do
 	table.insert(names, m.Name)

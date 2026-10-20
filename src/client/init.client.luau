@@ -16,6 +16,7 @@ local START_ORDER: { Controller } = {
 	-- After Data and Creature controllers: the tutorial step is worked out from both.
 	require(Controllers.TutorialController),
 	require(Controllers.IslandController),
+	require(Controllers.ChallengeController),
 	require(Controllers.PingController),
 }
 

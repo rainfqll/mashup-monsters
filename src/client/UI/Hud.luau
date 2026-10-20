@@ -22,6 +22,8 @@ export type Hud = {
 	showMessage: (text: string, color: Color3?) -> (),
 	setRideState: (hasCreature: boolean, riding: boolean) -> (),
 	setCoins: (coins: number) -> (),
+	-- A line under the toast for ongoing things (ring course progress); nil hides it.
+	setStatus: (text: string?) -> (),
 }
 
 -- Sized from screen height so it stays thumb-sized on phones and modest on monitors.
@@ -120,6 +122,20 @@ function Hud.create(parent: ScreenGui): Hud
 	toastScale.Parent = toast
 	toast.Parent = parent
 
+	local status = Instance.new("TextLabel")
+	status.Name = "Status"
+	status.AnchorPoint = Vector2.new(0.5, 0)
+	status.Position = UDim2.fromScale(0.5, 0.21)
+	status.Size = UDim2.fromScale(0.3, 0.08)
+	Theme.text(status, 28)
+	status.TextColor3 = Theme.colors.lime
+	status.Visible = false
+	local statusLimit = Instance.new("UISizeConstraint")
+	statusLimit.MaxSize = Vector2.new(320, 50)
+	statusLimit.MinSize = Vector2.new(160, 32)
+	statusLimit.Parent = status
+	status.Parent = parent
+
 	-- Each new message restarts the toast; the token stops an older timer hiding the newer one.
 	local toastToken = 0
 
@@ -167,6 +183,11 @@ function Hud.create(parent: ScreenGui): Hud
 		shownCoins = coins
 	end
 
+	local function setStatus(text: string?): ()
+		status.Visible = text ~= nil
+		status.Text = text or ""
+	end
+
 	return {
 		bagButton = bag,
 		bookButton = book,
@@ -175,6 +196,7 @@ function Hud.create(parent: ScreenGui): Hud
 		showMessage = showMessage,
 		setRideState = setRideState,
 		setCoins = setCoins,
+		setStatus = setStatus,
 	}
 end
 

@@ -22,6 +22,8 @@ return table.freeze({
 		maxFallSpeed = 12,
 		fallSpeedPerGlideStat = 1,
 		minFallSpeed = 6,
+		-- Rising speed inside a Windy Canyons updraft while gliding (studs/second).
+		updraftSpeed = 28,
 	}),
 	light = table.freeze({
 		brightness = 2,

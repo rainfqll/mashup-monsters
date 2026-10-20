@@ -332,13 +332,37 @@ end
 
 local CreatureService = {}
 
--- True while the player rides a creature that can swim (water gates check this).
-function CreatureService.canSwim(player: Player): boolean
+-- True while the player rides a creature with this ability (island and water gates check this).
+function CreatureService.ridingWith(player: Player, ability: Types.Ability): boolean
 	local state = states[player]
 	return state ~= nil
 		and state.riding
 		and state.summary ~= nil
-		and (state.summary :: Types.CreatureSummary).abilities.Swim == true
+		and (state.summary :: Types.CreatureSummary).abilities[ability] == true
+end
+
+-- Moves the player (and their creature, if it is out but not ridden) to `cframe`.
+-- A ridden creature is welded to the character, so it comes along on its own.
+function CreatureService.teleport(player: Player, cframe: CFrame): ()
+	local _, root = characterParts(player)
+	if root == nil then
+		return
+	end
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.CFrame = cframe
+	local state = stateFor(player)
+	local model = state.model
+	if model ~= nil and not state.riding then
+		local hitbox = model.PrimaryPart :: BasePart
+		local target = cframe * SPAWN_OFFSET
+		model:PivotTo(target)
+		hitbox.AssemblyLinearVelocity = Vector3.zero
+		for _, child in hitbox:GetChildren() do
+			if child:IsA("AlignPosition") then
+				child.Position = target.Position
+			end
+		end
+	end
 end
 
 function CreatureService.start(): ()

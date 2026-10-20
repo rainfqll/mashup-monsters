@@ -42,6 +42,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(1, 0, 1, 0, 0),
 		modelName = "DuckHead",
 		colorTheme = Color3.fromRGB(255, 220, 60),
+		animal = "Duck",
 	},
 	{
 		id = "MoleNose",
@@ -52,6 +53,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(0, 0, 0, 0, 1),
 		modelName = "MoleNose",
 		colorTheme = Color3.fromRGB(150, 100, 80),
+		animal = "Mole",
 	},
 	{
 		id = "OwlHead",
@@ -62,6 +64,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(0, 0, 0, 1, 0),
 		modelName = "OwlHead",
 		colorTheme = Color3.fromRGB(180, 130, 70),
+		animal = "Owl",
 	},
 	{
 		id = "FireflyHead",
@@ -72,6 +75,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(1, 0, 0, 1, 0),
 		modelName = "FireflyHead",
 		colorTheme = Color3.fromRGB(240, 255, 110),
+		animal = "Firefly",
 	},
 
 	-- Body
@@ -84,6 +88,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(0, 0, 0, 0, 1),
 		modelName = "PigBody",
 		colorTheme = Color3.fromRGB(255, 160, 190),
+		animal = "Pig",
 	},
 	{
 		id = "SnailBody",
@@ -94,6 +99,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(0, 0, 0, 0, 1),
 		modelName = "SnailBody",
 		colorTheme = Color3.fromRGB(200, 170, 230),
+		animal = "Snail",
 	},
 	{
 		id = "BearBody",
@@ -104,6 +110,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(0, 0, 0, 0, 3),
 		modelName = "BearBody",
 		colorTheme = Color3.fromRGB(140, 90, 60),
+		animal = "Bear",
 	},
 	{
 		id = "FrogBody",
@@ -114,6 +121,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(1, 2, 2, 0, 0),
 		modelName = "FrogBody",
 		colorTheme = Color3.fromRGB(90, 200, 90),
+		animal = "Frog",
 	},
 
 	-- Legs
@@ -127,6 +135,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(0, 0, 2, 0, 0),
 		modelName = "DuckFeet",
 		colorTheme = Color3.fromRGB(255, 150, 40),
+		animal = "Duck",
 	},
 	{
 		id = "FrogLegs",
@@ -137,6 +146,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(0, 3, 1, 0, 0),
 		modelName = "FrogLegs",
 		colorTheme = Color3.fromRGB(60, 180, 70),
+		animal = "Frog",
 	},
 	{
 		id = "CheetahLegs",
@@ -147,6 +157,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(3, 1, 0, 0, 0),
 		modelName = "CheetahLegs",
 		colorTheme = Color3.fromRGB(240, 180, 60),
+		animal = "Cheetah",
 	},
 	{
 		id = "ChickenLegs",
@@ -157,6 +168,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(2, 2, 0, 1, 0),
 		modelName = "ChickenLegs",
 		colorTheme = Color3.fromRGB(255, 200, 80),
+		animal = "Chicken",
 	},
 
 	-- Back
@@ -169,6 +181,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(1, 0, 0, 0, 0),
 		modelName = "PigTail",
 		colorTheme = Color3.fromRGB(255, 140, 180),
+		animal = "Pig",
 	},
 	{
 		id = "TurtleShell",
@@ -179,6 +192,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(0, 0, 1, 0, 1),
 		modelName = "TurtleShell",
 		colorTheme = Color3.fromRGB(70, 150, 90),
+		animal = "Turtle",
 	},
 	{
 		id = "BatWings",
@@ -189,6 +203,7 @@ local LIST: { PartDefinition } = {
 		stats = stats(0, 0, 0, 3, 0),
 		modelName = "BatWings",
 		colorTheme = Color3.fromRGB(90, 70, 120),
+		animal = "Bat",
 	},
 	{
 		id = "JellyfishTail",
@@ -199,6 +214,100 @@ local LIST: { PartDefinition } = {
 		stats = stats(0, 0, 3, 1, 0),
 		modelName = "JellyfishTail",
 		colorTheme = Color3.fromRGB(150, 220, 255),
+		animal = "Jellyfish",
+	},
+
+	-- Phase 4: Cliffside Peaks and Windy Canyons. Each new animal has 2 parts so set bonuses work.
+	{
+		id = "GoatHorns",
+		displayName = "Goat Horns",
+		slot = "Head",
+		rarity = "Common",
+		abilities = {},
+		stats = stats(0, 1, 0, 0, 1),
+		modelName = "GoatHorns",
+		colorTheme = Color3.fromRGB(235, 230, 220),
+		animal = "Goat",
+	},
+	{
+		id = "BatEars",
+		displayName = "Bat Ears",
+		slot = "Head",
+		rarity = "Uncommon",
+		abilities = {},
+		stats = stats(0, 0, 0, 1, 0),
+		modelName = "BatEars",
+		colorTheme = Color3.fromRGB(110, 85, 140),
+		animal = "Bat",
+	},
+	{
+		id = "EagleHead",
+		displayName = "Eagle Head",
+		slot = "Head",
+		rarity = "Epic",
+		abilities = {},
+		stats = stats(1, 0, 0, 2, 0),
+		modelName = "EagleHead",
+		colorTheme = Color3.fromRGB(250, 250, 245),
+		animal = "Eagle",
+	},
+	{
+		id = "ChickenBody",
+		displayName = "Chicken Body",
+		slot = "Body",
+		rarity = "Uncommon",
+		abilities = {},
+		stats = stats(0, 1, 0, 1, 0),
+		modelName = "ChickenBody",
+		colorTheme = Color3.fromRGB(250, 245, 235),
+		animal = "Chicken",
+	},
+	{
+		id = "CheetahBody",
+		displayName = "Cheetah Body",
+		slot = "Body",
+		rarity = "Rare",
+		abilities = { "Speed" },
+		stats = stats(2, 1, 0, 0, 0),
+		modelName = "CheetahBody",
+		colorTheme = Color3.fromRGB(240, 180, 60),
+		animal = "Cheetah",
+	},
+	{
+		-- A second way to super jump, found on Cliffside Peaks.
+		id = "GoatLegs",
+		displayName = "Goat Legs",
+		slot = "Legs",
+		rarity = "Uncommon",
+		abilities = { "SuperJump" },
+		stats = stats(0, 3, 0, 0, 1),
+		modelName = "GoatLegs",
+		colorTheme = Color3.fromRGB(235, 230, 220),
+		animal = "Goat",
+	},
+	{
+		-- First reward of the Cliffside summit chest.
+		id = "OwlWings",
+		displayName = "Owl Wings",
+		slot = "Back",
+		rarity = "Rare",
+		abilities = { "Glide" },
+		stats = stats(0, 0, 0, 3, 0),
+		modelName = "OwlWings",
+		colorTheme = Color3.fromRGB(180, 130, 70),
+		animal = "Owl",
+	},
+	{
+		-- Legendary: only from the Windy Canyons ring course (bundles never roll Legendary).
+		id = "EagleWings",
+		displayName = "Eagle Wings",
+		slot = "Back",
+		rarity = "Legendary",
+		abilities = { "Glide", "Speed" },
+		stats = stats(2, 0, 0, 5, 0),
+		modelName = "EagleWings",
+		colorTheme = Color3.fromRGB(120, 80, 50),
+		animal = "Eagle",
 	},
 }
 

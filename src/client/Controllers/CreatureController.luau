@@ -5,6 +5,7 @@
 -- The server owns everything that matters (which creature, riding on/off, speeds); this only
 -- adds feel. Glide and swim run here because character movement is simulated on the client.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -29,6 +30,8 @@ local messageListeners: { MessageListener } = {}
 local sitTrack: AnimationTrack? = nil
 local lastSafeCFrame: CFrame? = nil
 local WATER_CHECK_INTERVAL = 0.1
+-- Invisible box parts in Windy Canyons; gliding inside one lifts you (gliding alone only slows a fall).
+local UPDRAFT_TAG = "Updraft"
 local nextWaterCheck = 0
 
 local function notifyState(): ()
@@ -167,11 +170,35 @@ local function follow(model: Model, root: BasePart): ()
 	alignOrientation.CFrame = facing.Rotation
 end
 
+local function inUpdraft(position: Vector3): boolean
+	for _, updraft in CollectionService:GetTagged(UPDRAFT_TAG) do
+		if updraft:IsA("BasePart") then
+			local localPoint = updraft.CFrame:PointToObjectSpace(position)
+			local half = updraft.Size / 2
+			if
+				math.abs(localPoint.X) <= half.X
+				and math.abs(localPoint.Y) <= half.Y
+				and math.abs(localPoint.Z) <= half.Z
+			then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 local function glide(model: Model, humanoid: Humanoid, root: BasePart): ()
 	if not hasAbility(model, "Glide") or humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
 		return
 	end
 	local tuning = Abilities.glide
+	if inUpdraft(root.Position) then
+		local velocity = root.AssemblyLinearVelocity
+		if velocity.Y < tuning.updraftSpeed then
+			root.AssemblyLinearVelocity = Vector3.new(velocity.X, tuning.updraftSpeed, velocity.Z)
+		end
+		return
+	end
 	local glideStat = model:GetAttribute("GlideStat")
 	local bonus = if type(glideStat) == "number"
 		then glideStat * tuning.fallSpeedPerGlideStat

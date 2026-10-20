@@ -39,6 +39,17 @@ export type PartDefinition = {
 	colorTheme: Color3,
 	-- Free parts (the Stitchy Blob body) are owned by everyone, never run out, and never drop.
 	free: boolean?,
+	-- Which animal the part comes from. 2+ parts of one animal on a creature give a set bonus.
+	animal: string?,
+}
+
+-- One island (Config/Islands). `requires` is the ability that gets you there the first time;
+-- after that, the travel pads at the lab take you straight there.
+export type IslandDefinition = {
+	id: string,
+	displayName: string,
+	order: number,
+	requires: Ability?,
 }
 
 export type RarityInfo = {
@@ -72,6 +83,8 @@ export type PlayerSnapshot = {
 	tutorialDone: boolean,
 	starterCollected: { [string]: true },
 	funnel: { [string]: true },
+	unlockedIslands: { [string]: true },
+	challengesDone: { [string]: true },
 }
 
 return {}

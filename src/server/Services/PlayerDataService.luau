@@ -13,13 +13,14 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Creatures = require(ReplicatedStorage.Shared.Creatures)
+local Islands = require(ReplicatedStorage.Shared.Config.Islands)
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local ProfileStore = require(ServerStorage.ServerPackages.ProfileStore)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 -- Bump CURRENT_VERSION and add a step to migrate() whenever the save shape changes.
-local CURRENT_VERSION = 3
+local CURRENT_VERSION = 4
 
 export type PlayerData = {
 	version: number,
@@ -38,6 +39,16 @@ export type PlayerData = {
 	starterCollected: { [string]: true },
 	-- v3: first-time milestones already logged to analytics (see MILESTONES)
 	funnel: { [string]: true },
+	-- v4: islands reached at least once (the travel pads go there). Meadow Isle is implied.
+	unlockedIslands: { [string]: true },
+	-- v4: challenges whose first-time reward was given
+	challengesDone: { [string]: true },
+	-- v4: os.time() when the display shelf was last emptied (Phase 4c)
+	shelfCollectedAt: number,
+	-- v4: UTC day number (os.time() // 86400) of the last free daily bundle, 0 = never
+	dailyBundleDay: number,
+	-- v4: Secret Mashups ever stitched, for the creature book
+	secretsFound: { [string]: true },
 }
 
 local TEMPLATE: PlayerData = {
@@ -50,6 +61,11 @@ local TEMPLATE: PlayerData = {
 	tutorialDone = false,
 	starterCollected = {},
 	funnel = {},
+	unlockedIslands = {},
+	challengesDone = {},
+	shelfCollectedAt = 0,
+	dailyBundleDay = 0,
+	secretsFound = {},
 }
 
 -- Onboarding funnel steps (Roblox AnalyticsService), logged once per player in this order.
@@ -118,6 +134,12 @@ local function migrate(data: PlayerData): ()
 		-- v2 -> v3: anyone who already stitched a creature has done what the tutorial teaches.
 		data.tutorialDone = #data.creatures > 0
 	end
+	if data.version < 4 then
+		-- v3 -> v4: anyone who already swam to Lily Lagoon keeps it on the travel pads.
+		if data.funnel.FirstNewIsland then
+			data.unlockedIslands.LilyLagoon = true
+		end
+	end
 	data.version = CURRENT_VERSION
 end
 
@@ -161,7 +183,16 @@ local function sanitize(data: PlayerData): ()
 		data.activeCreature = 0
 	end
 
-	for _, flags in { data.discovered, data.starterCollected, data.funnel } do
+	for _, flags in
+		{
+			data.discovered,
+			data.starterCollected,
+			data.funnel,
+			data.unlockedIslands,
+			data.challengesDone,
+			data.secretsFound,
+		}
+	do
 		for key, value in flags do
 			if type(key) ~= "string" or value ~= true then
 				flags[key] = nil
@@ -170,6 +201,14 @@ local function sanitize(data: PlayerData): ()
 	end
 	if type(data.tutorialDone) ~= "boolean" then
 		data.tutorialDone = false
+	end
+	for _, field in { "shelfCollectedAt", "dailyBundleDay" } do
+		local value = (data :: any)[field]
+		if not isCount(value) then
+			(data :: any)[field] = 0
+		else
+			(data :: any)[field] = math.floor(value)
+		end
 	end
 end
 
@@ -199,6 +238,8 @@ local function sendSnapshot(player: Player): ()
 		tutorialDone = profile.Data.tutorialDone,
 		starterCollected = table.clone(profile.Data.starterCollected),
 		funnel = table.clone(profile.Data.funnel),
+		unlockedIslands = table.clone(profile.Data.unlockedIslands),
+		challengesDone = table.clone(profile.Data.challengesDone),
 	}
 	snapshotRemote:FireClient(player, snapshot)
 end
@@ -400,6 +441,53 @@ local function activeProfile(player: Player): ProfileStore.Profile<PlayerData>?
 		return nil
 	end
 	return profile
+end
+
+function PlayerDataService.isIslandUnlocked(player: Player, islandId: string): boolean
+	if islandId == Islands.HOME then
+		return true
+	end
+	local profile = profiles[player]
+	return profile ~= nil and profile.Data.unlockedIslands[islandId] == true
+end
+
+-- Remembers that the player reached an island. Returns true the first time only.
+function PlayerDataService.unlockIsland(player: Player, islandId: string): boolean
+	local profile = activeProfile(player)
+	if
+		profile == nil
+		or Islands.get(islandId) == nil
+		or PlayerDataService.isIslandUnlocked(player, islandId)
+	then
+		return false
+	end
+	profile.Data.unlockedIslands[islandId] = true
+	sendSnapshot(player)
+	return true
+end
+
+function PlayerDataService.isChallengeDone(player: Player, challengeId: string): boolean
+	local profile = profiles[player]
+	return profile ~= nil and profile.Data.challengesDone[challengeId] == true
+end
+
+-- First completion of a challenge: marks it done and gives its reward part, in one step.
+function PlayerDataService.completeChallenge(
+	player: Player,
+	challengeId: string,
+	partId: string
+): boolean
+	local profile = activeProfile(player)
+	if profile == nil or profile.Data.challengesDone[challengeId] then
+		return false
+	end
+	profile.Data.challengesDone[challengeId] = true
+	if not PlayerDataService.addPart(player, partId, 1) then
+		-- Unknown reward id (a config mistake): undo, so the player can still earn it once fixed.
+		profile.Data.challengesDone[challengeId] = nil
+		return false
+	end
+	return true
 end
 
 -- Moves the loadout's parts out of the inventory into a new creature and makes it the active

@@ -35,6 +35,11 @@ local DEFINITIONS: { [string]: RemoteKind } = {
 	-- Client -> server: () buy one mystery bundle at a nearby machine. Returns
 	-- (partId: string?, message: string?); the roll happens on the server.
 	OpenBundle = "Function",
+	-- Server -> client: (text) a short message for the toast, e.g. why a gate sent you home.
+	Notice = "Event",
+	-- Server -> client: (challengeId, nextRing, totalRings, secondsLeft) ring course progress;
+	-- nextRing 0 means the run ended (finished or timed out).
+	ChallengeProgress = "Event",
 }
 
 local FOLDER_NAME = "Remotes"

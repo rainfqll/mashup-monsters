@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local ChallengeController = require(script.Parent.ChallengeController)
 local CreatureController = require(script.Parent.CreatureController)
 local DataController = require(script.Parent.DataController)
 local IslandController = require(script.Parent.IslandController)
@@ -137,6 +138,12 @@ function UIController.start(): ()
 
 	IslandController.onIslandEntered(function(displayName)
 		hud.showMessage(displayName, Theme.colors.lime)
+	end)
+	ChallengeController.onStatusChanged(hud.setStatus)
+	Remotes.event("Notice").OnClientEvent:Connect(function(text: unknown)
+		if type(text) == "string" then
+			hud.showMessage(text, Color3.fromRGB(255, 200, 60))
+		end
 	end)
 
 	-- Keyboard B / controller Y: bag. R / controller X: ride. Touch uses the on-screen buttons.
