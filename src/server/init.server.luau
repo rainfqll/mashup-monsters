@@ -23,6 +23,7 @@ local START_ORDER: { Service } = {
 	-- After CreatureService: the island and water gates ask it who rides with which ability.
 	require(Services.IslandService),
 	require(Services.ChallengeService),
+	require(Services.FossilService),
 	require(Services.TradeService),
 	require(Services.CrewService),
 }
