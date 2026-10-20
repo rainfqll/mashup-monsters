@@ -53,10 +53,18 @@ function ChallengeController.onStatusChanged(listener: StatusListener): ()
 end
 
 function ChallengeController.start(): ()
+	local activeChallenge: string? = nil
+	local activeRing = 0
 	paintCourses(nil, 0)
+	-- Far-away parts stream in later (StreamingEnabled), so paint rings as they arrive too.
+	CollectionService:GetInstanceAddedSignal(RING_TAG):Connect(function()
+		paintCourses(activeChallenge, activeRing)
+	end)
 	Remotes.event("ChallengeProgress").OnClientEvent
 		:Connect(function(challengeId: string, nextRing: number, total: number, secondsLeft: number)
 			runToken += 1
+			activeChallenge = if nextRing == 0 then nil else challengeId
+			activeRing = nextRing
 			if nextRing == 0 then
 				paintCourses(nil, 0)
 				setStatus(nil)

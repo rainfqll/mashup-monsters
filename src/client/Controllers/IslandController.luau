@@ -52,8 +52,9 @@ local function labelPad(prompt: ProximityPrompt, snapshot: Types.PlayerSnapshot?
 	if sign == nil then
 		local billboard = Instance.new("BillboardGui")
 		billboard.Name = "PadSign"
-		billboard.Size = UDim2.fromOffset(220, 80)
-		billboard.StudsOffsetWorldSpace = Vector3.new(0, 6, 0)
+		-- Sized in studs (not pixels) so neighbouring pads' signs never overlap from afar.
+		billboard.Size = UDim2.fromScale(8, 2.8)
+		billboard.StudsOffsetWorldSpace = Vector3.new(0, 4.5, 0)
 		billboard.MaxDistance = 80
 		billboard.AlwaysOnTop = false
 		local title = Instance.new("TextLabel")
