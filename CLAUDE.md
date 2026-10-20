@@ -125,8 +125,8 @@ server rejects bad stitch requests (far, wrong slot, not owned, junk).
 **Next: Phase 3 (First-time experience and the starter islands).** Start with a short plan + decisions.
 
 Notes for the next session:
-- The user is on a Mac without Homebrew. Pushing from the Mac needs GitHub sign-in: the GitHub CLI `.pkg`
-  from https://cli.github.com, then `gh auth login`. Commits are local until this is set up (not pushed yet).
+- GitHub sign-in is set up on the Mac: `gh` (2.102.0, Intel build under Rosetta) lives in `~/.local/bin`,
+  logged in as rainfqll, and `gh auth setup-git` is done, so `git push` just works. Push after each phase commit.
 - Harmless Studio noise in Output (not ours, ignore): `ContentId rbxassetid://203785492 ... Asset type
   does not match`, `Asset id 12946311200 should reference a Folder Instance named R15Anim`,
   `[profilestore]: Roblox API services available`, and `UIBlox FoundationProvider` / `CorePackages...`
