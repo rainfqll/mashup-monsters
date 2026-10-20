@@ -98,6 +98,28 @@ function Theme.button(name: string, text: string, maxText: number): TextButton
 	return button
 end
 
+local PULSE_INFO = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+
+-- Makes a button's border throb in lime to say "press me" (tutorial hints). Returns a function
+-- that stops it and restores the border. Uses the border, not the size, so it never fights the
+-- press animation.
+function Theme.pulse(button: GuiObject): () -> ()
+	local border = button:FindFirstChild("Border") :: UIStroke?
+	if border == nil then
+		border = Theme.outline(button, 3)
+	end
+	local stroke = border :: UIStroke
+	local originalColor, originalThickness = stroke.Color, stroke.Thickness
+	stroke.Color = Theme.colors.lime
+	local tween = TweenService:Create(stroke, PULSE_INFO, { Thickness = originalThickness + 6 })
+	tween:Play()
+	return function()
+		tween:Cancel()
+		stroke.Color = originalColor
+		stroke.Thickness = originalThickness
+	end
+end
+
 -- A quick grow-and-settle, used to draw the eye (e.g. the bag after a pickup).
 function Theme.pop(scale: UIScale): ()
 	scale.Scale = 1.25

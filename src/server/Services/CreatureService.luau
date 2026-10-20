@@ -215,6 +215,7 @@ local function mount(player: Player): ()
 	state.riding = true
 	model:SetAttribute("Riding", true)
 	player.Character:SetAttribute("RidingCreature", true)
+	PlayerDataService.recordMilestone(player, "FirstRide")
 end
 
 local function despawn(player: Player): ()
@@ -330,6 +331,15 @@ local function onPlayerAdded(player: Player): ()
 end
 
 local CreatureService = {}
+
+-- True while the player rides a creature that can swim (water gates check this).
+function CreatureService.canSwim(player: Player): boolean
+	local state = states[player]
+	return state ~= nil
+		and state.riding
+		and state.summary ~= nil
+		and (state.summary :: Types.CreatureSummary).abilities.Swim == true
+end
 
 function CreatureService.start(): ()
 	folder = Instance.new("Folder")

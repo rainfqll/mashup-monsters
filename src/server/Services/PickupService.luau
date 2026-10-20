@@ -1,0 +1,263 @@
+--!strict
+-- PickupService: owns pickups in the world (parts and coins) and decides who gets them.
+--
+-- Spots are built in Studio as invisible BaseParts:
+--   "PickupSpot" + string attribute "PartId"  -> a glowing part bubble (respawns)
+--   "CoinSpot"                                 -> a spinning coin (respawns)
+--   "StarterSpot" + "PartId"                   -> a tutorial part only new players see; the
+--                                                 client draws it and asks via CollectStarterPart
+-- Part and coin pickups use the server's own Touched event, so there is no "I collected X"
+-- remote for those; the server still checks the toucher is alive and actually nearby.
+-- Pickups are hidden and reused instead of destroyed, so respawning creates no new instances.
+
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Bundles = require(ReplicatedStorage.Shared.Config.Bundles)
+local Parts = require(ReplicatedStorage.Shared.Config.Parts)
+local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local RateLimit = require(script.Parent.Parent.RateLimit)
+local PlayerDataService = require(script.Parent.PlayerDataService)
+
+local PART_SPOT_TAG = "PickupSpot"
+local COIN_SPOT_TAG = "CoinSpot"
+local STARTER_SPOT_TAG = "StarterSpot"
+-- Client code looks for this tag to animate pickups.
+local PICKUP_TAG = "PartPickup"
+
+local PART_RESPAWN_SECONDS = 30
+-- Touched can report contacts slightly late or from a lagging character; anything farther
+-- than this from the pickup's center is treated as not really touching.
+local MAX_COLLECT_DISTANCE = 12
+local HITBOX_SIZE = 4
+local PART_BUBBLE_TRANSPARENCY = 0.45
+local COIN_COLOR = Color3.fromRGB(255, 200, 40)
+
+type Kind = "Part" | "Coin"
+
+type Pickup = {
+	kind: Kind,
+	partId: string?,
+	model: Model,
+	hitbox: BasePart,
+	core: BasePart,
+	-- How see-through the hitbox is while active (coins hide theirs; parts show a bubble).
+	hitboxTransparency: number,
+	sparkles: ParticleEmitter,
+	active: boolean,
+}
+
+local pickups: { Pickup } = {}
+
+local function buildPickup(spot: BasePart, kind: Kind, partId: string?, folder: Folder): Pickup
+	local definition = if partId ~= nil then assert(Parts.get(partId)) else nil
+	local glowColor = if definition ~= nil then Rarities[definition.rarity].color else COIN_COLOR
+
+	local model = Instance.new("Model")
+	model.Name = if partId ~= nil then `Pickup_{partId}` else "Pickup_Coin"
+	model:SetAttribute("Kind", kind)
+	if partId ~= nil then
+		model:SetAttribute("PartId", partId)
+	end
+
+	-- The area players touch. Static on the server; only the core moves (on clients).
+	local hitboxTransparency = if kind == "Part" then PART_BUBBLE_TRANSPARENCY else 1
+	local hitbox = Instance.new("Part")
+	hitbox.Name = "Hitbox"
+	hitbox.Shape = Enum.PartType.Ball
+	hitbox.Size = Vector3.one * HITBOX_SIZE
+	hitbox.CFrame = CFrame.new(spot.Position + Vector3.new(0, HITBOX_SIZE / 2, 0))
+	hitbox.Material = Enum.Material.Neon
+	hitbox.Color = glowColor
+	hitbox.Transparency = hitboxTransparency
+	hitbox.Anchored = true
+	hitbox.CanCollide = false
+	hitbox.CanQuery = false
+	hitbox.CastShadow = false
+	hitbox.Parent = model
+
+	local core = Instance.new("Part")
+	core.Name = "Core"
+	if definition ~= nil then
+		-- A chunky block in the part's own color, standing in for the real part model.
+		core.Size = Vector3.one * (HITBOX_SIZE * 0.4)
+		core.Material = Enum.Material.SmoothPlastic
+		core.Color = definition.colorTheme
+		core.CFrame = hitbox.CFrame
+	else
+		-- A chunky gold coin standing on its edge (cylinder axis is X).
+		core.Shape = Enum.PartType.Cylinder
+		core.Size = Vector3.new(0.5, 2.4, 2.4)
+		core.Material = Enum.Material.Neon
+		core.Color = COIN_COLOR
+		core.CFrame = hitbox.CFrame * CFrame.Angles(0, math.rad(90), 0)
+	end
+	core.Anchored = true
+	core.CanCollide = false
+	core.CanTouch = false
+	core.CanQuery = false
+	core.CastShadow = false
+	core.Parent = model
+
+	local sparkles = Instance.new("ParticleEmitter")
+	sparkles.Color = ColorSequence.new(glowColor)
+	sparkles.LightEmission = 1
+	sparkles.Rate = if kind == "Part" then 4 else 2
+	sparkles.Lifetime = NumberRange.new(0.8, 1.4)
+	sparkles.Speed = NumberRange.new(1, 2)
+	sparkles.SpreadAngle = Vector2.new(180, 180)
+	sparkles.Size = NumberSequence.new(0.35, 0)
+	sparkles.Parent = hitbox
+
+	model.PrimaryPart = hitbox
+	model.Parent = folder
+	CollectionService:AddTag(model, PICKUP_TAG)
+
+	return {
+		kind = kind,
+		partId = partId,
+		model = model,
+		hitbox = hitbox,
+		core = core,
+		hitboxTransparency = hitboxTransparency,
+		sparkles = sparkles,
+		active = true,
+	}
+end
+
+local function setActive(pickup: Pickup, active: boolean): ()
+	pickup.active = active
+	pickup.hitbox.Transparency = if active then pickup.hitboxTransparency else 1
+	pickup.core.Transparency = if active then 0 else 1
+	pickup.hitbox.CanTouch = active
+	pickup.sparkles.Enabled = active
+	pickup.model:SetAttribute("Active", active)
+end
+
+local function rootOf(player: Player): BasePart?
+	local character = player.Character
+	if character == nil then
+		return nil
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if humanoid == nil or humanoid.Health <= 0 or root == nil or not root:IsA("BasePart") then
+		return nil
+	end
+	return root
+end
+
+local function playerFromHit(hit: BasePart): (Player?, BasePart?)
+	local character = hit:FindFirstAncestorOfClass("Model")
+	local player = if character ~= nil then Players:GetPlayerFromCharacter(character) else nil
+	if player == nil then
+		return nil, nil
+	end
+	local root = rootOf(player)
+	if root == nil then
+		return nil, nil
+	end
+	return player, root
+end
+
+local function grant(pickup: Pickup, player: Player): boolean
+	local partId = pickup.partId
+	if partId ~= nil then
+		return PlayerDataService.addPart(player, partId, 1)
+	end
+	return PlayerDataService.addCoins(player, Bundles.coinPickupValue, "CoinPickup")
+end
+
+local function onTouched(pickup: Pickup, hit: BasePart): ()
+	if not pickup.active then
+		return
+	end
+	local player, root = playerFromHit(hit)
+	if player == nil or root == nil then
+		return
+	end
+	if (root.Position - pickup.hitbox.Position).Magnitude > MAX_COLLECT_DISTANCE then
+		return
+	end
+
+	-- Hide first so a second touch in the same frame can't grant it twice.
+	setActive(pickup, false)
+	if not grant(pickup, player) then
+		-- Save not loaded yet (or the id is bad): leave the pickup for them or someone else.
+		setActive(pickup, true)
+		return
+	end
+
+	local respawn = if pickup.kind == "Part"
+		then PART_RESPAWN_SECONDS
+		else Bundles.coinRespawnSeconds
+	task.delay(respawn, setActive, pickup, true)
+end
+
+local function spawnFromTag(folder: Folder, tag: string, kind: Kind): ()
+	for _, spot in CollectionService:GetTagged(tag) do
+		local partId = spot:GetAttribute("PartId")
+		if not spot:IsA("BasePart") then
+			warn(`[Mashup Monsters] {spot:GetFullName()} is tagged {tag} but is not a part`)
+		elseif kind == "Part" and (type(partId) ~= "string" or Parts.get(partId) == nil) then
+			warn(`[Mashup Monsters] {spot:GetFullName()} has unknown PartId "{tostring(partId)}"`)
+		else
+			local pickup =
+				buildPickup(spot, kind, if kind == "Part" then partId :: string else nil, folder)
+			pickup.hitbox.Touched:Connect(function(hit: BasePart)
+				onTouched(pickup, hit)
+			end)
+			setActive(pickup, true)
+			table.insert(pickups, pickup)
+		end
+	end
+end
+
+-- Starter spots are looked up by name; names must be unique (e.g. Starter1..Starter3).
+local function findStarterSpot(spotName: string): BasePart?
+	for _, spot in CollectionService:GetTagged(STARTER_SPOT_TAG) do
+		if spot.Name == spotName and spot:IsA("BasePart") then
+			return spot
+		end
+	end
+	return nil
+end
+
+local function onCollectStarterPart(player: Player, spotName: unknown): ()
+	if type(spotName) ~= "string" or not RateLimit.allow(player, "CollectStarterPart", 0.2) then
+		return
+	end
+	local spot = findStarterSpot(spotName)
+	local root = rootOf(player)
+	if spot == nil or root == nil then
+		return
+	end
+	if (root.Position - spot.Position).Magnitude > MAX_COLLECT_DISTANCE + HITBOX_SIZE then
+		return
+	end
+	local partId = spot:GetAttribute("PartId")
+	if type(partId) ~= "string" or Parts.get(partId) == nil then
+		return
+	end
+	PlayerDataService.collectStarterPart(player, spotName, partId)
+end
+
+local PickupService = {}
+
+function PickupService.start(): ()
+	local folder = Instance.new("Folder")
+	folder.Name = "Pickups"
+	folder.Parent = workspace
+
+	spawnFromTag(folder, PART_SPOT_TAG, "Part")
+	spawnFromTag(folder, COIN_SPOT_TAG, "Coin")
+	if #pickups == 0 then
+		warn(`[Mashup Monsters] no pickup spots found (tag parts "{PART_SPOT_TAG}" in Studio)`)
+	end
+
+	Remotes.event("CollectStarterPart").OnServerEvent:Connect(onCollectStarterPart)
+end
+
+return PickupService

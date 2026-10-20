@@ -6,6 +6,7 @@
 -- servers can't overwrite each other), autosave every few minutes, retries, and a final save
 -- on leave and on server shutdown (it binds BindToClose itself).
 
+local AnalyticsService = game:GetService("AnalyticsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -18,7 +19,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 -- Bump CURRENT_VERSION and add a step to migrate() whenever the save shape changes.
-local CURRENT_VERSION = 2
+local CURRENT_VERSION = 3
 
 export type PlayerData = {
 	version: number,
@@ -31,6 +32,12 @@ export type PlayerData = {
 	activeCreature: number,
 	-- v2: every part ever found, for the creature book
 	discovered: { [string]: true },
+	-- v3: the guided first session is over (set on the first ride)
+	tutorialDone: boolean,
+	-- v3: which personal starter pickups (by spot name) were collected during the tutorial
+	starterCollected: { [string]: true },
+	-- v3: first-time milestones already logged to analytics (see MILESTONES)
+	funnel: { [string]: true },
 }
 
 local TEMPLATE: PlayerData = {
@@ -40,10 +47,32 @@ local TEMPLATE: PlayerData = {
 	creatures = {},
 	activeCreature = 0,
 	discovered = {},
+	tutorialDone = false,
+	starterCollected = {},
+	funnel = {},
 }
 
+-- Onboarding funnel steps (Roblox AnalyticsService), logged once per player in this order.
+local MILESTONES: { [string]: number } = {
+	Joined = 1,
+	FirstPart = 2,
+	FirstStitch = 3,
+	FirstRide = 4,
+	FirstNewIsland = 5,
+}
+local COIN_CURRENCY = "Coins"
+
 -- Studio gets its own store so testing never touches real players' saves.
-local STORE_NAME = if RunService:IsStudio() then "PlayerData_Studio" else "PlayerData"
+-- In Studio only, a string attribute "DevStoreSuffix" on ServerStorage (e.g. "_Fresh1") switches
+-- to another empty test store, to replay the first session without deleting the usual test save.
+local function storeName(): string
+	if not RunService:IsStudio() then
+		return "PlayerData"
+	end
+	local suffix = ServerStorage:GetAttribute("DevStoreSuffix")
+	return "PlayerData_Studio" .. (if type(suffix) == "string" then suffix else "")
+end
+local STORE_NAME = storeName()
 
 -- Keys keep the UserId as plain text so Roblox's "right to be forgotten" deletion requests match.
 local function keyFor(player: Player): string
@@ -84,6 +113,10 @@ local function migrate(data: PlayerData): ()
 		for partId in data.inventory do
 			data.discovered[partId] = true
 		end
+	end
+	if data.version < 3 then
+		-- v2 -> v3: anyone who already stitched a creature has done what the tutorial teaches.
+		data.tutorialDone = #data.creatures > 0
 	end
 	data.version = CURRENT_VERSION
 end
@@ -128,12 +161,19 @@ local function sanitize(data: PlayerData): ()
 		data.activeCreature = 0
 	end
 
-	for partId, value in data.discovered do
-		if type(partId) ~= "string" or value ~= true then
-			data.discovered[partId] = nil
+	for _, flags in { data.discovered, data.starterCollected, data.funnel } do
+		for key, value in flags do
+			if type(key) ~= "string" or value ~= true then
+				flags[key] = nil
+			end
 		end
 	end
+	if type(data.tutorialDone) ~= "boolean" then
+		data.tutorialDone = false
+	end
 end
+
+local PlayerDataService = {}
 
 local function notifyActiveChanged(player: Player): ()
 	for _, listener in activeListeners do
@@ -156,6 +196,9 @@ local function sendSnapshot(player: Player): ()
 		creatures = creatures,
 		activeCreature = profile.Data.activeCreature,
 		discovered = table.clone(profile.Data.discovered),
+		tutorialDone = profile.Data.tutorialDone,
+		starterCollected = table.clone(profile.Data.starterCollected),
+		funnel = table.clone(profile.Data.funnel),
 	}
 	snapshotRemote:FireClient(player, snapshot)
 end
@@ -197,6 +240,7 @@ local function onPlayerAdded(player: Player): ()
 	end
 
 	profiles[player] = profile
+	PlayerDataService.recordMilestone(player, "Joined")
 	sendSnapshot(player)
 	notifyActiveChanged(player)
 end
@@ -209,15 +253,36 @@ local function onPlayerRemoving(player: Player): ()
 	end
 end
 
-local PlayerDataService = {}
-
 function PlayerDataService.isLoaded(player: Player): boolean
 	return profiles[player] ~= nil
 end
 
+-- Logs a first-time milestone to the onboarding funnel once per player, ever. Recording
+-- "FirstRide" also ends the tutorial. Unknown names are ignored.
+function PlayerDataService.recordMilestone(player: Player, name: string): ()
+	local profile = profiles[player]
+	local step = MILESTONES[name]
+	if profile == nil or step == nil or profile.Data.funnel[name] then
+		return
+	end
+	profile.Data.funnel[name] = true
+	if name == "FirstRide" then
+		profile.Data.tutorialDone = true
+	end
+	-- Analytics must never break gameplay (e.g. if the service is unavailable in some context).
+	pcall(AnalyticsService.LogOnboardingFunnelStepEvent, AnalyticsService, player, step, name)
+	sendSnapshot(player)
+end
+
 -- The single way to give parts. `partId` must be a real part; returns false (and gives
 -- nothing) if it is unknown or the player's save is not loaded, so callers can keep the item.
-function PlayerDataService.addPart(player: Player, partId: string, amount: number): boolean
+-- `quiet` skips the "+ part" pop-up (the bundle reveal shows the part itself).
+function PlayerDataService.addPart(
+	player: Player,
+	partId: string,
+	amount: number,
+	quiet: boolean?
+): boolean
 	local profile = profiles[player]
 	if profile == nil or not profile:IsActive() then
 		return false
@@ -236,8 +301,97 @@ function PlayerDataService.addPart(player: Player, partId: string, amount: numbe
 	profile.Data.discovered[partId] = true
 
 	sendSnapshot(player)
-	collectedRemote:FireClient(player, partId)
+	if not quiet then
+		collectedRemote:FireClient(player, partId)
+	end
+	PlayerDataService.recordMilestone(player, "FirstPart")
 	return true
+end
+
+-- Gives coins earned in play (pickups). `source` names what paid out, for the economy dashboard.
+function PlayerDataService.addCoins(player: Player, amount: number, source: string): boolean
+	local profile = profiles[player]
+	if profile == nil or not profile:IsActive() then
+		return false
+	end
+	if amount ~= amount or amount < 1 or amount % 1 ~= 0 then
+		warn(`[Mashup Monsters] addCoins: bad amount {amount}`)
+		return false
+	end
+	profile.Data.coins += amount
+	local balance = profile.Data.coins
+	pcall(
+		AnalyticsService.LogEconomyEvent,
+		AnalyticsService,
+		player,
+		Enum.AnalyticsEconomyFlowType.Source,
+		COIN_CURRENCY,
+		amount,
+		balance,
+		Enum.AnalyticsEconomyTransactionType.Gameplay.Name,
+		source
+	)
+	sendSnapshot(player)
+	return true
+end
+
+-- Buys one bundle: takes `price` coins and gives `partId` in one step, so a player can never pay
+-- without getting the part (or get it without paying). The server rolls `partId` beforehand.
+function PlayerDataService.buyBundle(
+	player: Player,
+	price: number,
+	partId: string,
+	sku: string
+): (boolean, string?)
+	local profile = profiles[player]
+	if profile == nil or not profile:IsActive() then
+		return false, "Your lab is still loading."
+	end
+	if profile.Data.coins < price then
+		return false, `You need {price} coins.`
+	end
+	if Parts.get(partId) == nil then
+		return false, "Something went wrong. Try again!"
+	end
+	profile.Data.coins -= price
+	local balance = profile.Data.coins
+	PlayerDataService.addPart(player, partId, 1, true)
+	pcall(
+		AnalyticsService.LogEconomyEvent,
+		AnalyticsService,
+		player,
+		Enum.AnalyticsEconomyFlowType.Sink,
+		COIN_CURRENCY,
+		price,
+		balance,
+		Enum.AnalyticsEconomyTransactionType.Shop.Name,
+		sku
+	)
+	return true, nil
+end
+
+-- A personal tutorial pickup. Each starter spot gives its part once, and only before the
+-- tutorial is over; the caller (PickupService) checks the spot is real and the player is near.
+function PlayerDataService.collectStarterPart(
+	player: Player,
+	spotName: string,
+	partId: string
+): boolean
+	local profile = profiles[player]
+	if profile == nil or not profile:IsActive() then
+		return false
+	end
+	local data = profile.Data
+	if data.tutorialDone or data.starterCollected[spotName] then
+		return false
+	end
+	data.starterCollected[spotName] = true
+	return PlayerDataService.addPart(player, partId, 1)
+end
+
+function PlayerDataService.isTutorialDone(player: Player): boolean
+	local profile = profiles[player]
+	return profile ~= nil and profile.Data.tutorialDone
 end
 
 local function activeProfile(player: Player): ProfileStore.Profile<PlayerData>?
@@ -277,6 +431,7 @@ function PlayerDataService.stitch(player: Player, loadout: Types.Loadout): (bool
 
 	sendSnapshot(player)
 	notifyActiveChanged(player)
+	PlayerDataService.recordMilestone(player, "FirstStitch")
 	return true, nil
 end
 

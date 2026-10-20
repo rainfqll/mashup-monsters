@@ -39,15 +39,18 @@ Original IP only, no Toolbox scripts.
 default.project.json   Rojo mapping (only code folders)
 src/
   server/      -> ServerScriptService.Server   init.server.luau = only server Script, starts services in order
-    Services/  PlayerDataService, PartService, StitchService, CreatureService, TradeService, CrewService
+    Services/  PlayerDataService, PickupService, StitchService, BundleService, CreatureService, IslandService,
+               TradeService, CrewService
   client/      -> StarterPlayerScripts.Client  init.client.luau = only LocalScript, starts controllers in order
-    Controllers/ InputController, DataController, UIController, PickupController, CreatureController, PingController
+    Controllers/ InputController, DataController, UIController, PickupController, CreatureController,
+                 TutorialController, IslandController, PingController
     UI/        Theme, Panel (standard pop-up), PartCard (card + reflowing grid), Hud, InventoryScreen,
-               BookScreen, StitchScreen, CreaturePreview (spinning ViewportFrame)
+               BookScreen, StitchScreen, CreaturePreview (spinning ViewportFrame), BundleScreen, RevealOverlay
   shared/      -> ReplicatedStorage.Shared
     Types.luau   Slot, Rarity, PartStats, PartDefinition
     Remotes.luau the ONLY place remotes are declared; server calls Remotes.createAll() at startup
-    Config/      Parts, Rarities, Abilities (riding/glide tuning) (later: Islands, Combos)
+    Config/      Parts, Rarities, Abilities (riding/glide tuning), Bundles (price, odds, coin value) (later: Islands, Combos)
+    Water.luau   terrain-water check at the feet, shared by the client and server water gates
     Creatures.luau        loadout rules: parseLoadout (validates untrusted input), summarize, MAX_SAVED
     CreatureAssembler.luau builds a creature Model from PartModels by snapping attachments
   server/RateLimit.luau  per-player remote cooldowns
@@ -93,7 +96,7 @@ Plus, when the Studio MCP is connected: sync, `start_stop_play`, `get_console_ou
 **Phase 1: Parts and inventory: DONE (awaiting user review).** Verified in Studio with real DataStore
 access: collect parts on Meadow Isle, stop, play again, inventory still there.
 - Pickups: Studio-owned invisible BaseParts tagged `PickupSpot` with a `PartId` attribute
-  (`Workspace.MeadowIsle.PickupSpots`). `PartService` builds a glowing pickup on each; collecting uses the
+  (`Workspace.MeadowIsle.PickupSpots`). `PartService` (now `PickupService`) builds a glowing pickup on each; collecting uses the
   server's own Touched (no collect remote) + distance check; pickups are pooled and respawn after 30 s.
 - Remotes: `ClientReady` (client->server once), `DataSnapshot` and `PartCollected` (server->client).
 - Placeholder Meadow Isle was built in Studio via MCP (floating disc, hills, trees). The template
@@ -122,7 +125,27 @@ server rejects bad stitch requests (far, wrong slot, not owned, junk).
   button sounds; device-emulator check by the user; ride button position is a fixed 42% height (verify vs
   jump button on small phones).
 
-**Next: Phase 3 (First-time experience and the starter islands).** Start with a short plan + decisions.
+**Phase 3: First-time experience and starter islands: DONE (awaiting user review).** Goal: spawn -> riding the
+first creature in under 3 minutes without reading. Verified in Studio on a fresh save: starter trail -> stitch screen
+pre-filled -> stitch -> ride -> river -> Lily Lagoon, all 5 funnel events, coins, bundle machine + hatching reveal.
+- Decisions: starters Duck Head + Duck Feet + Pig Tail (makes a Swim creature); floating river Meadow -> Lagoon;
+  coins 5 each, bundle 50 (~5 min); odds shown on the machine; hatching egg reveal, nothing slot-machine-like.
+- Save v3: `tutorialDone`, `starterCollected`, `funnel` (milestones logged once). v2 -> v3 sets tutorialDone if the
+  player already has a creature. `PickupService` (renamed from PartService) handles part bubbles, coins (`CoinSpot`),
+  and starter spots (`StarterSpot`, collected through the `CollectStarterPart` remote; each player sees their own).
+- `BundleService`: coins only, server rolls rarity from `Config/Bundles.odds`, `OpenBundle` RemoteFunction.
+  The machine prompt stays hidden until the player has a creature (keeps the first minutes focused).
+- `IslandService`: server water gate (teleports non-swimmers back, 1 s grace) + island zones (`IslandZone` parts
+  with `Island`/`DisplayName`) that record FirstNewIsland. `CreatureService.canSwim` answers the gate.
+- Analytics: onboarding funnel (Joined, FirstPart, FirstStitch, FirstRide, FirstNewIsland) + coin economy events.
+- Dev switch: set the attribute `DevStoreSuffix` (string) on ServerStorage to play as a brand-new player on a
+  separate Studio store (e.g. `_Fresh3`). Remove it to go back to your normal Studio save. Studio only.
+- Studio world (not in git): `MeadowIsle.StarterSpots`, `CoinSpots`, `Zone`, `BundleMachine`; `LilyLagoon`
+  (pool, islet, hidden parts, coins, Zone); `LagoonRiver` (glass floor + water, `GuideTarget`).
+- Known gaps: coins respawn every 20 s, so a lagoon lap pays for a bundle quickly (tune after playtests);
+  abilities Dig/Reveal/Climb/Carry/Shield still have no gameplay; button sounds; device-emulator check.
+
+**Next: Phase 4 (see docs/GAME_DESIGN.md).** Start with a short plan + decisions.
 
 Notes for the next session:
 - GitHub sign-in is set up on the Mac: `gh` (2.102.0, Intel build under Rosetta) lives in `~/.local/bin`,
@@ -134,3 +157,5 @@ Notes for the next session:
 - Rojo must be connected in Edit mode (not during Play). On connect, Rojo may ask to Accept changes.
   Claude can start `rojo serve` itself; the user clicks Connect in the Rojo plugin.
 - The Studio MCP `studio_id` changes when Studio reloads (e.g. after publishing): call `list_roblox_studios` again.
+- Studio stops rendering when its window is minimized or hidden: prompts never show and `screen_capture` hangs.
+  Ask the user to keep Studio visible during play tests.

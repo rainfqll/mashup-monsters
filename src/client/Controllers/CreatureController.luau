@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 
 local Abilities = require(ReplicatedStorage.Shared.Config.Abilities)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Water = require(ReplicatedStorage.Shared.Water)
 
 local player = Players.LocalPlayer
 
@@ -182,30 +183,11 @@ local function glide(model: Model, humanoid: Humanoid, root: BasePart): ()
 	end
 end
 
--- True if the terrain cell around `position` holds water. Standing on a pool's floor is not
--- "dry ground", so this is checked before remembering a safe spot.
-local function isWaterAt(position: Vector3): boolean
-	local region = Region3.new(position - Vector3.one, position + Vector3.one):ExpandToGrid(4)
-	local materials = workspace.Terrain:ReadVoxels(region, 4)
-	for x = 1, materials.Size.X do
-		for y = 1, materials.Size.Y do
-			for z = 1, materials.Size.Z do
-				if materials[x][y][z] == Enum.Material.Water then
-					return true
-				end
-			end
-		end
-	end
-	return false
-end
-
 -- Water is how islands are gated, so swimming needs a creature with Swim. Without it, you are
 -- gently put back where you last stood on dry ground.
 local function checkWater(humanoid: Humanoid, root: BasePart): ()
-	-- A tall creature wades through shallow water without ever "swimming", so also look for
-	-- water just above the feet; otherwise wading would get around a water gate.
-	local feet = root.Position - Vector3.new(0, root.Size.Y / 2 + humanoid.HipHeight - 1, 0)
-	local inWater = humanoid:GetState() == Enum.HumanoidStateType.Swimming or isWaterAt(feet)
+	local inWater = humanoid:GetState() == Enum.HumanoidStateType.Swimming
+		or Water.isWaterAt(Water.feetPosition(humanoid, root))
 	if inWater then
 		local canSwim = creature ~= nil and isRiding() and hasAbility(creature, "Swim")
 		if not canSwim and lastSafeCFrame ~= nil then
@@ -220,7 +202,7 @@ local function checkWater(humanoid: Humanoid, root: BasePart): ()
 	if
 		floor ~= Enum.Material.Air
 		and floor ~= Enum.Material.Water
-		and not isWaterAt(root.Position)
+		and not Water.isWaterAt(root.Position)
 	then
 		lastSafeCFrame = root.CFrame
 	end
@@ -234,6 +216,16 @@ end
 
 function CreatureController.isRiding(): boolean
 	return isRiding()
+end
+
+-- Your creature's model in the world, or nil if none is out.
+function CreatureController.getCreature(): Model?
+	return creature
+end
+
+-- True if your creature that is out has `ability` (e.g. "Swim").
+function CreatureController.creatureHas(ability: string): boolean
+	return creature ~= nil and hasAbility(creature, ability)
 end
 
 function CreatureController.toggleRide(): ()

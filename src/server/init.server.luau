@@ -14,9 +14,12 @@ type Service = { start: () -> () }
 
 local START_ORDER: { Service } = {
 	require(Services.PlayerDataService),
-	require(Services.PartService),
+	require(Services.PickupService),
 	require(Services.StitchService),
+	require(Services.BundleService),
 	require(Services.CreatureService),
+	-- After CreatureService: the water gate asks it who can swim.
+	require(Services.IslandService),
 	require(Services.TradeService),
 	require(Services.CrewService),
 }

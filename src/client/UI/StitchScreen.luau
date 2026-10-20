@@ -41,6 +41,10 @@ local ABILITY_LABELS: { [string]: string } = {
 export type StitchScreen = {
 	panel: Panel.Panel,
 	render: (snapshot: Types.PlayerSnapshot) -> (),
+	-- Tutorial: fill the slots with these parts (only the ones you own) before opening.
+	preselect: (loadout: Types.Loadout) -> (),
+	-- Tutorial: make the lever throb while it is ready to pull.
+	setLeverHint: (on: boolean) -> (),
 }
 
 local function abilityText(summary: Types.CreatureSummary): string
@@ -63,6 +67,8 @@ function StitchScreen.create(parent: ScreenGui, showMessage: (string, Color3?) -
 	local lastSnapshot: Types.PlayerSnapshot? = nil
 	local confirmIndex: number? = nil
 	local confirmToken = 0
+	local leverHint = false
+	local stopLeverPulse: (() -> ())? = nil
 
 	local panel = Panel.create(parent, "Stitch", "Stitch Station")
 	-- More room than other panels: the preview needs it on short phones.
@@ -327,6 +333,14 @@ function StitchScreen.create(parent: ScreenGui, showMessage: (string, Color3?) -
 		lever.Text = if stitching then "..." elseif full then "Lab full" else "STITCH!"
 		lever.BackgroundColor3 = if ready then Theme.colors.lime else Color3.fromRGB(110, 100, 130)
 		lever.Active = ready
+
+		local shouldPulse = leverHint and ready
+		if shouldPulse and stopLeverPulse == nil then
+			stopLeverPulse = Theme.pulse(lever)
+		elseif not shouldPulse and stopLeverPulse ~= nil then
+			stopLeverPulse()
+			stopLeverPulse = nil
+		end
 	end
 
 	local function renderPicker(): ()
@@ -509,6 +523,21 @@ function StitchScreen.create(parent: ScreenGui, showMessage: (string, Color3?) -
 			if panel.isOpen() then
 				renderAll()
 			end
+		end,
+		preselect = function(loadout: Types.Loadout)
+			for _, slot in Creatures.SLOTS do
+				local id = (loadout :: any)[slot] :: string?
+				if id ~= nil and ownedCount(id) > 0 then
+					(selection :: any)[slot] = id
+				end
+			end
+			if panel.isOpen() then
+				renderAll()
+			end
+		end,
+		setLeverHint = function(on: boolean)
+			leverHint = on
+			renderStitchTab()
 		end,
 	}
 end

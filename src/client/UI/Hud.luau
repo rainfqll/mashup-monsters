@@ -21,6 +21,7 @@ export type Hud = {
 	showPartToast: (definition: Types.PartDefinition) -> (),
 	showMessage: (text: string, color: Color3?) -> (),
 	setRideState: (hasCreature: boolean, riding: boolean) -> (),
+	setCoins: (coins: number) -> (),
 }
 
 -- Sized from screen height so it stays thumb-sized on phones and modest on monitors.
@@ -73,6 +74,28 @@ function Hud.create(parent: ScreenGui): Hud
 	ride.Position = UDim2.new(1, -8, 0.42, 0)
 	ride.Visible = false
 	ride.Parent = parent
+
+	-- Coins, top-right: the one corner Roblox's own controls leave free on every device.
+	local coinPill = Instance.new("TextLabel")
+	coinPill.Name = "Coins"
+	coinPill.AnchorPoint = Vector2.new(1, 0)
+	coinPill.Position = UDim2.new(1, -8, 0, 8)
+	coinPill.Size = UDim2.fromScale(0.3, 0.09)
+	coinPill.SizeConstraint = Enum.SizeConstraint.RelativeYY
+	coinPill.Text = "0"
+	Theme.text(coinPill, 28)
+	coinPill.BackgroundTransparency = 0
+	coinPill.BackgroundColor3 = Color3.fromRGB(255, 200, 40)
+	Theme.corner(coinPill, UDim.new(0.5, 0))
+	Theme.outline(coinPill, 4)
+	local coinLimit = Instance.new("UISizeConstraint")
+	coinLimit.MinSize = Vector2.new(96, 36)
+	coinLimit.MaxSize = Vector2.new(170, 56)
+	coinLimit.Parent = coinPill
+	local coinScale = Instance.new("UIScale")
+	coinScale.Parent = coinPill
+	coinPill.Parent = parent
+	local shownCoins: number? = nil
 
 	local toast = Instance.new("TextLabel")
 	toast.Name = "Toast"
@@ -135,6 +158,15 @@ function Hud.create(parent: ScreenGui): Hud
 		ride.BackgroundColor3 = if riding then Theme.colors.purple else Theme.colors.lime
 	end
 
+	local function setCoins(coins: number): ()
+		coinPill.Text = `{coins} coins`
+		-- Pop only on gains, so spending doesn't look like a reward.
+		if shownCoins ~= nil and coins > shownCoins then
+			Theme.pop(coinScale)
+		end
+		shownCoins = coins
+	end
+
 	return {
 		bagButton = bag,
 		bookButton = book,
@@ -142,6 +174,7 @@ function Hud.create(parent: ScreenGui): Hud
 		showPartToast = showPartToast,
 		showMessage = showMessage,
 		setRideState = setRideState,
+		setCoins = setCoins,
 	}
 end
 

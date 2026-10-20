@@ -29,6 +29,12 @@ local DEFINITIONS: { [string]: RemoteKind } = {
 	SetActiveCreature = "Event",
 	-- Client -> server: () hop on or off your creature. The server checks distance.
 	ToggleRide = "Event",
+	-- Client -> server: (spotName) touched a personal tutorial starter part. Server checks the
+	-- spot is real, the player is next to it, and the tutorial is still running.
+	CollectStarterPart = "Event",
+	-- Client -> server: () buy one mystery bundle at a nearby machine. Returns
+	-- (partId: string?, message: string?); the roll happens on the server.
+	OpenBundle = "Function",
 }
 
 local FOLDER_NAME = "Remotes"

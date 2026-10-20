@@ -13,14 +13,20 @@ local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local CreatureController = require(script.Parent.CreatureController)
 local DataController = require(script.Parent.DataController)
+local IslandController = require(script.Parent.IslandController)
+local TutorialController = require(script.Parent.TutorialController)
 local BookScreen = require(script.Parent.Parent.UI.BookScreen)
+local BundleScreen = require(script.Parent.Parent.UI.BundleScreen)
 local Hud = require(script.Parent.Parent.UI.Hud)
 local InventoryScreen = require(script.Parent.Parent.UI.InventoryScreen)
 local Panel = require(script.Parent.Parent.UI.Panel)
+local RevealOverlay = require(script.Parent.Parent.UI.RevealOverlay)
 local StitchScreen = require(script.Parent.Parent.UI.StitchScreen)
+local Theme = require(script.Parent.Parent.UI.Theme)
 
 local STITCH_PROMPT_TAG = "StitchPrompt"
--- Walking this far from the station closes its screen (the server would refuse a stitch anyway).
+local BUNDLE_PROMPT_TAG = "BundlePrompt"
+-- Walking this far from a machine closes its screen (the server would refuse anyway).
 local STATION_LEAVE_DISTANCE = 22
 
 local UIController = {}
@@ -42,7 +48,9 @@ function UIController.start(): ()
 	local inventory = InventoryScreen.create(screen)
 	local book = BookScreen.create(screen)
 	local stitch = StitchScreen.create(screen, hud.showMessage)
-	local panels: { Panel.Panel } = { inventory.panel, book.panel, stitch.panel }
+	local reveal = RevealOverlay.create(screen)
+	local bundle = BundleScreen.create(screen, reveal, hud.showMessage)
+	local panels: { Panel.Panel } = { inventory.panel, book.panel, stitch.panel, bundle.panel }
 
 	local function openOnly(target: Panel.Panel): ()
 		for _, panel in panels do
@@ -69,24 +77,66 @@ function UIController.start(): ()
 	end)
 	hud.rideButton.Activated:Connect(CreatureController.toggleRide)
 
-	-- Opening the stitch screen from the station's prompt; leaving the station closes it.
-	local stationPart: BasePart? = nil
+	-- Machines open their screen from a prompt; walking away closes it.
+	local machinePart: BasePart? = nil
 	ProximityPromptService.PromptTriggered:Connect(function(prompt)
-		if CollectionService:HasTag(prompt, STITCH_PROMPT_TAG) then
-			local parent = prompt.Parent
-			stationPart = if parent ~= nil and parent:IsA("BasePart") then parent else nil
-			openOnly(stitch.panel)
+		local parent = prompt.Parent
+		local target = if CollectionService:HasTag(prompt, STITCH_PROMPT_TAG)
+			then stitch.panel
+			elseif CollectionService:HasTag(prompt, BUNDLE_PROMPT_TAG) then bundle.panel
+			else nil
+		if target == nil then
+			return
 		end
+		machinePart = if parent ~= nil and parent:IsA("BasePart") then parent else nil
+		-- Tutorial: the stitch screen opens with the starter parts already in their slots.
+		if target == stitch.panel and TutorialController.getStep() == "Stitch" then
+			stitch.preselect(TutorialController.starterLoadout())
+		end
+		openOnly(target)
 	end)
 	RunService.Heartbeat:Connect(function()
-		local station = stationPart
+		local machine = machinePart
 		local character = player.Character
 		local root = if character ~= nil then character:FindFirstChild("HumanoidRootPart") else nil
-		if stitch.panel.isOpen() and station ~= nil and root ~= nil and root:IsA("BasePart") then
-			if (root.Position - station.Position).Magnitude > STATION_LEAVE_DISTANCE then
-				stitch.panel.close()
+		if machine == nil or root == nil or not root:IsA("BasePart") then
+			return
+		end
+		if (root.Position - machine.Position).Magnitude > STATION_LEAVE_DISTANCE then
+			stitch.panel.close()
+			bundle.panel.close()
+		end
+	end)
+
+	-- No shop prompts before the first creature (spec 4.6): the bundle machine's prompt stays
+	-- hidden until then. Prompts are per-client, so this only affects this player.
+	local bundleUnlocked = false
+	local function syncBundlePrompts(): ()
+		for _, prompt in CollectionService:GetTagged(BUNDLE_PROMPT_TAG) do
+			if prompt:IsA("ProximityPrompt") then
+				prompt.Enabled = bundleUnlocked
 			end
 		end
+	end
+	CollectionService:GetInstanceAddedSignal(BUNDLE_PROMPT_TAG):Connect(syncBundlePrompts)
+
+	-- Tutorial hints on the HUD and the stitch lever.
+	local stopRidePulse: (() -> ())? = nil
+	local function syncTutorialHints(step: TutorialController.Step?): ()
+		stitch.setLeverHint(step == "Stitch")
+		local pulseRide = step == "Ride"
+		if pulseRide and stopRidePulse == nil then
+			stopRidePulse = Theme.pulse(hud.rideButton)
+		elseif not pulseRide and stopRidePulse ~= nil then
+			stopRidePulse()
+			stopRidePulse = nil
+		end
+	end
+	TutorialController.onStepChanged(syncTutorialHints)
+	syncTutorialHints(TutorialController.getStep())
+
+	IslandController.onIslandEntered(function(displayName)
+		hud.showMessage(displayName, Theme.colors.lime)
 	end)
 
 	-- Keyboard B / controller Y: bag. R / controller X: ride. Touch uses the on-screen buttons.
@@ -121,6 +171,10 @@ function UIController.start(): ()
 		inventory.render(snapshot)
 		book.render(snapshot)
 		stitch.render(snapshot)
+		bundle.render(snapshot)
+		hud.setCoins(snapshot.coins)
+		bundleUnlocked = #snapshot.creatures > 0 or snapshot.tutorialDone
+		syncBundlePrompts()
 	end)
 
 	local function syncRide(): ()

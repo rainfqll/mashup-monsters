@@ -69,6 +69,9 @@ export type PlayerSnapshot = {
 	-- Index into `creatures` of the one that is out, or 0 for none.
 	activeCreature: number,
 	discovered: { [string]: true },
+	tutorialDone: boolean,
+	starterCollected: { [string]: true },
+	funnel: { [string]: true },
 }
 
 return {}
