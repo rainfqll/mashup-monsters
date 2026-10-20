@@ -83,6 +83,7 @@ Plus, when the Studio MCP is connected: sync, `start_stop_play`, `get_console_ou
 ## Current phase
 
 **Phase 0: Setup**. Code skeleton written and lint/format/build-checked in the cloud session.
-Waiting on: user creates a GitHub repo (push), clones it on their PC, follows `docs/HOW_TO_SYNC.md`,
-and confirms Play shows "server ready" / "client ready" with no errors. Then Phase 1 continues in
-Claude Code on the user's PC with the Studio MCP connected.
+Code is pushed to https://github.com/rainfqll/mashup-monsters (public). Waiting on: the user (on a
+Mac, no Homebrew) clones it, follows `docs/HOW_TO_SYNC.md`, and confirms Play shows "server ready" /
+"client ready" with no errors. Then Phase 1 continues in Claude Code on the Mac with the Studio MCP
+connected. Pushing from the Mac will need GitHub sign-in (GitHub CLI `.pkg` from cli.github.com + `gh auth login`).
