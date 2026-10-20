@@ -16,12 +16,14 @@ local CreatureController = require(script.Parent.CreatureController)
 local Daily = require(ReplicatedStorage.Shared.Daily)
 local DataController = require(script.Parent.DataController)
 local IslandController = require(script.Parent.IslandController)
+local PingController = require(script.Parent.PingController)
 local TutorialController = require(script.Parent.TutorialController)
 local BookScreen = require(script.Parent.Parent.UI.BookScreen)
 local BundleScreen = require(script.Parent.Parent.UI.BundleScreen)
 local Hud = require(script.Parent.Parent.UI.Hud)
 local InventoryScreen = require(script.Parent.Parent.UI.InventoryScreen)
 local Panel = require(script.Parent.Parent.UI.Panel)
+local PingMenu = require(script.Parent.Parent.UI.PingMenu)
 local RevealOverlay = require(script.Parent.Parent.UI.RevealOverlay)
 local StitchScreen = require(script.Parent.Parent.UI.StitchScreen)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -141,6 +143,20 @@ function UIController.start(): ()
 		hud.showMessage(displayName, Theme.colors.lime)
 	end)
 	ChallengeController.onStatusChanged(hud.setStatus)
+
+	local pingMenu = PingMenu.create(hud.pingButton, PingController.ping, function(emoteId)
+		if not PingController.emote(emoteId) then
+			hud.showMessage("Hop off your creature to do that!", Color3.fromRGB(60, 150, 255))
+		end
+	end)
+	hud.pingButton.Activated:Connect(pingMenu.toggle)
+	-- Keyboard G / controller L1: open the ping row.
+	ContextActionService:BindAction("TogglePings", function(_, state)
+		if state == Enum.UserInputState.Begin then
+			pingMenu.toggle()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.G, Enum.KeyCode.ButtonL1)
 	Remotes.event("Notice").OnClientEvent:Connect(function(text: unknown)
 		if type(text) == "string" then
 			hud.showMessage(text, Color3.fromRGB(255, 200, 60))

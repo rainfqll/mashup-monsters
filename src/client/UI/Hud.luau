@@ -17,6 +17,7 @@ local TOAST_OUT = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirectio
 export type Hud = {
 	bagButton: TextButton,
 	bookButton: TextButton,
+	pingButton: TextButton,
 	rideButton: TextButton,
 	showPartToast: (definition: Types.PartDefinition) -> (),
 	showMessage: (text: string, color: Color3?) -> (),
@@ -69,6 +70,11 @@ function Hud.create(parent: ScreenGui): Hud
 	local book = sideButton("BookButton", "Book", Theme.colors.purple)
 	book.LayoutOrder = 2
 	book.Parent = leftColumn
+
+	-- Pings and emotes: talking without chat.
+	local ping = sideButton("PingButton", "Ping", Color3.fromRGB(255, 170, 50))
+	ping.LayoutOrder = 3
+	ping.Parent = leftColumn
 
 	-- Right side, above the jump button's area.
 	local ride = sideButton("RideButton", "Ride", Theme.colors.lime)
@@ -191,6 +197,7 @@ function Hud.create(parent: ScreenGui): Hud
 	return {
 		bagButton = bag,
 		bookButton = book,
+		pingButton = ping,
 		rideButton = ride,
 		showPartToast = showPartToast,
 		showMessage = showMessage,

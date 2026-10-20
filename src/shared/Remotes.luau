@@ -41,6 +41,11 @@ local DEFINITIONS: { [string]: RemoteKind } = {
 	-- Server -> client: (challengeId, nextRing, totalRings, secondsLeft) ring course progress;
 	-- nextRing 0 means the run ended (finished or timed out).
 	ChallengeProgress = "Event",
+	-- Client -> server: (kind, position) place a ping ("Here" | "Help" | "Look"). The server
+	-- checks the kind, that the position is real and near you, and a cooldown.
+	Ping = "Event",
+	-- Server -> all clients: (userId, displayName, kind, position) show a ping marker.
+	PingShown = "Event",
 }
 
 local FOLDER_NAME = "Remotes"

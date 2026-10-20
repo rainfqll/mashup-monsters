@@ -14,6 +14,7 @@ type Service = { start: () -> () }
 
 local START_ORDER: { Service } = {
 	require(Services.PlayerDataService),
+	require(Services.SocialService),
 	require(Services.PickupService),
 	require(Services.StitchService),
 	require(Services.BundleService),

@@ -20,6 +20,7 @@ local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local RateLimit = require(script.Parent.Parent.RateLimit)
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local SocialService = require(script.Parent.SocialService)
 
 local PART_SPOT_TAG = "PickupSpot"
 local COIN_SPOT_TAG = "CoinSpot"
@@ -167,7 +168,9 @@ local function grant(pickup: Pickup, player: Player): boolean
 	if partId ~= nil then
 		return PlayerDataService.addPart(player, partId, 1)
 	end
-	return PlayerDataService.addCoins(player, Bundles.coinPickupValue, "CoinPickup")
+	-- Friends in the same server find a little more (the friend loot bonus).
+	local value = Bundles.coinPickupValue + SocialService.coinBonus(player)
+	return PlayerDataService.addCoins(player, value, "CoinPickup")
 end
 
 local function onTouched(pickup: Pickup, hit: BasePart): ()

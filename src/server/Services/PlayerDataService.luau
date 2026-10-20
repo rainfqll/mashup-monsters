@@ -80,6 +80,7 @@ local MILESTONES: { [string]: number } = {
 	FirstStitch = 3,
 	FirstRide = 4,
 	FirstNewIsland = 5,
+	FirstCoopAction = 6,
 }
 local COIN_CURRENCY = "Coins"
 
