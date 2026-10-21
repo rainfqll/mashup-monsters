@@ -1,92 +1,48 @@
 --!strict
--- The starter monsters new players choose from at the stand on Meadow Isle (spec 4.8). Each is a
--- whole creature of one starter family, and each opens a different first island, so the first
--- trip out depends on the choice. Finding the other families' parts opens the rest.
--- World pieces (Studio): parts tagged "StarterPedestal" with a string attribute "Starter" (id),
--- turned to face where players come from (the creature on top faces the pedestal's front).
--- Ids are saved in player data (starterChosen), so never rename one once it has shipped.
+-- The first monster (spec 4.8): new players build it themselves in a pop-up, picking each slot
+-- from the three starter part sets. Every combination is allowed, so everyone's first monster is
+-- their own mashup, and the abilities it ends up with decide where it can go first (Ember Wings
+-- glide, Tide Tail swims, Thunder Legs super jump).
 
-local Islands = require(script.Parent.Islands)
+local Creatures = require(script.Parent.Parent.Creatures)
 local Parts = require(script.Parent.Parts)
 local Types = require(script.Parent.Parent.Types)
 
-export type StarterDefinition = {
-	id: string,
-	displayName: string,
-	loadout: Types.Loadout,
-	-- What it can do (shown on its sign) and the island that ability opens first.
-	ability: Types.Ability,
-	island: string,
-	color: Color3,
-}
+local FAMILIES = { "Ember", "Tide", "Thunder" }
 
-local LIST: { StarterDefinition } = {
-	{
-		id = "Splash",
-		displayName = "Splash",
-		loadout = { Head = "TideHead", Body = "TideBody", Legs = "TideLegs", Back = "TideTail" },
-		ability = "Swim",
-		island = "LilyLagoon",
-		color = Color3.fromRGB(110, 215, 235),
-	},
-	{
-		id = "Zippy",
-		displayName = "Zippy",
-		loadout = {
-			Head = "ThunderHead",
-			Body = "ThunderBody",
-			Legs = "ThunderLegs",
-			Back = "ThunderTail",
-		},
-		ability = "SuperJump",
-		island = "CliffsidePeaks",
-		color = Color3.fromRGB(255, 220, 60),
-	},
-	{
-		id = "Ember",
-		displayName = "Ember",
-		loadout = {
-			Head = "EmberHead",
-			Body = "EmberBody",
-			Legs = "EmberLegs",
-			Back = "EmberWings",
-		},
-		ability = "Glide",
-		island = "WindyCanyons",
-		color = Color3.fromRGB(255, 115, 50),
-	},
-}
-
-local byId: { [string]: StarterDefinition } = {}
-for _, starter in LIST do
-	assert(byId[starter.id] == nil, `Duplicate starter id "{starter.id}"`)
-	local island = Islands.get(starter.island)
-	assert(
-		island ~= nil and island.requires == starter.ability,
-		`Starter "{starter.id}": island mismatch`
-	)
-	local hasAbility = false
-	for slot, partId in starter.loadout :: { [string]: string } do
-		local part = Parts.get(partId)
-		assert(
-			part ~= nil and part.slot == slot,
-			`Starter "{starter.id}": {partId} is not a {slot} part`
-		)
-		if table.find(part.abilities, starter.ability) then
-			hasAbility = true
+-- slot -> the part ids you can pick for it, in FAMILIES order
+local OPTIONS: { [Types.Slot]: { string } } = {}
+for _, slot in Creatures.SLOTS do
+	local list = {}
+	for _, family in FAMILIES do
+		for _, part in Parts.list do
+			if part.slot == slot and part.family == family and not part.free then
+				table.insert(list, part.id)
+			end
 		end
 	end
-	assert(hasAbility, `Starter "{starter.id}" can't {starter.ability}`)
-	table.freeze(starter.loadout)
-	byId[starter.id] = table.freeze(starter)
+	assert(#list == #FAMILIES, `Starters: each family needs exactly one {slot} part`)
+	OPTIONS[slot] = table.freeze(list)
 end
 
 local Starters = {}
 
-Starters.list = table.freeze(LIST)
+Starters.families = table.freeze(FAMILIES)
+Starters.options = table.freeze(OPTIONS)
 
-function Starters.get(id: unknown): StarterDefinition?
-	return if type(id) == "string" then byId[id] else nil
+-- A starter loadout from untrusted input: all four slots filled, each with one of its options.
+function Starters.parse(value: unknown): Types.Loadout?
+	local loadout = Creatures.parseLoadout(value)
+	if loadout == nil then
+		return nil
+	end
+	for _, slot in Creatures.SLOTS do
+		local partId = (loadout :: any)[slot] :: string?
+		if partId == nil or not table.find(OPTIONS[slot], partId) then
+			return nil
+		end
+	end
+	return loadout
 end
 
 return table.freeze(Starters)

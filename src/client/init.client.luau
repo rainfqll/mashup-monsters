@@ -18,7 +18,6 @@ local START_ORDER: { Controller } = {
 	require(Controllers.IslandController),
 	require(Controllers.ChallengeController),
 	require(Controllers.ShelfController),
-	require(Controllers.StarterController),
 	require(Controllers.EggController),
 	require(Controllers.FossilController),
 	require(Controllers.TradeController),

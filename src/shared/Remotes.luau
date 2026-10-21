@@ -29,6 +29,9 @@ local DEFINITIONS: { [string]: RemoteKind } = {
 	SetActiveCreature = "Event",
 	-- Client -> server: () hop on or off your creature. The server checks distance.
 	ToggleRide = "Event",
+	-- Client -> server: (loadout) build your first monster from the starter part sets. The server
+	-- checks every slot and that you have no monster yet. Returns (ok: boolean, message: string?).
+	CreateStarter = "Function",
 	-- Client -> server: (kind?) open one mystery bundle at a nearby machine: "daily" for the free
 	-- daily one, otherwise it costs coins. Returns
 	-- (partId: string?, message: string?); the roll happens on the server.

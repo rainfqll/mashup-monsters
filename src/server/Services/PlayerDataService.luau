@@ -21,7 +21,6 @@ local ProfileStore = require(ServerStorage.ServerPackages.ProfileStore)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local RetiredIds = require(ReplicatedStorage.Shared.Config.RetiredIds)
 local Shelf = require(ReplicatedStorage.Shared.Config.Shelf)
-local Starters = require(ReplicatedStorage.Shared.Config.Starters)
 local Trading = require(ReplicatedStorage.Shared.Config.Trading)
 local Types = require(ReplicatedStorage.Shared.Types)
 
@@ -60,8 +59,8 @@ export type PlayerData = {
 	secretsFound: { [string]: true },
 	-- v5: partId -> os.time() until which it can't be traded (fresh Legendary+ parts)
 	tradeLockUntil: { [string]: number },
-	-- v7: the starter monster chosen at the stand (Config/Starters id), "" = none yet
-	starterChosen: string,
+	-- v7: the player built their first monster in the starter pop-up (Config/Starters)
+	starterMade: boolean,
 	-- v7: egg spot name -> os.time() it was last found (it comes back after Eggs.respawnHours)
 	eggSpots: { [string]: number },
 }
@@ -83,7 +82,7 @@ local TEMPLATE: PlayerData = {
 	dailyBundleDay = 0,
 	secretsFound = {},
 	tradeLockUntil = {},
-	starterChosen = "",
+	starterMade = false,
 	eggSpots = {},
 }
 
@@ -212,8 +211,8 @@ local function migrate(data: PlayerData): ()
 		-- v5 -> v6: the farm-animal parts became the fantasy families.
 		convertRetiredIds(data)
 	end
-	-- v6 -> v7 needs no step: starterChosen and eggSpots start empty, and players who already
-	-- have a creature are past the tutorial, so the starter stand never offers them a free one.
+	-- v6 -> v7 needs no step: starterMade starts false and eggSpots empty, and players who
+	-- already have a creature are past the tutorial, so the starter pop-up never offers them one.
 	data.version = CURRENT_VERSION
 end
 
@@ -276,8 +275,8 @@ local function sanitize(data: PlayerData): ()
 	if type(data.tutorialDone) ~= "boolean" then
 		data.tutorialDone = false
 	end
-	if data.starterChosen ~= "" and Starters.get(data.starterChosen) == nil then
-		data.starterChosen = ""
+	if type(data.starterMade) ~= "boolean" then
+		data.starterMade = false
 	end
 	for _, field in { "shelfUpdatedAt", "dailyBundleDay" } do
 		local value = (data :: any)[field]
@@ -373,7 +372,7 @@ local function sendSnapshot(player: Player): ()
 		shelfCap = shelfRate(profile.Data) * Shelf.capHours,
 		shelfUpdatedAt = profile.Data.shelfUpdatedAt,
 		tradeLockUntil = table.clone(profile.Data.tradeLockUntil),
-		starterChosen = profile.Data.starterChosen,
+		starterMade = profile.Data.starterMade,
 		eggSpots = table.clone(profile.Data.eggSpots),
 	}
 	snapshotRemote:FireClient(player, snapshot)
@@ -565,25 +564,28 @@ local function activeProfile(player: Player): ProfileStore.Profile<PlayerData>?
 	return profile
 end
 
--- A new player's starter monster from the stand: stitched and out right away, in one step.
--- Only before their first creature, so the stand is the first minute of the game and never a
--- free monster for anyone else.
-function PlayerDataService.chooseStarter(player: Player, starterId: string): boolean
+-- A new player's first monster, built in the starter pop-up: stitched and out right away, in
+-- one step. `loadout` must already be checked (Starters.parse). Only before the first
+-- creature, so the pop-up is the first minute of the game and never a free monster later.
+function PlayerDataService.createStarter(player: Player, loadout: Types.Loadout): boolean
 	local profile = activeProfile(player)
-	local starter = Starters.get(starterId)
-	if profile == nil or starter == nil then
+	if profile == nil then
 		return false
 	end
 	local data = profile.Data
-	if data.starterChosen ~= "" or data.tutorialDone or #data.creatures > 0 then
+	if data.starterMade or data.tutorialDone or #data.creatures > 0 then
 		return false
 	end
 	settleShelf(data)
-	data.starterChosen = starter.id
-	table.insert(data.creatures, table.clone(starter.loadout))
+	data.starterMade = true
+	table.insert(data.creatures, table.clone(loadout))
 	data.activeCreature = #data.creatures
-	for _, partId in Creatures.partIds(starter.loadout) do
+	for _, partId in Creatures.partIds(loadout) do
 		data.discovered[partId] = true
+	end
+	local secret = Creatures.findSecret(loadout)
+	if secret ~= nil then
+		data.secretsFound[secret.id] = true
 	end
 
 	sendSnapshot(player)

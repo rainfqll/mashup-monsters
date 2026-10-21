@@ -1,14 +1,13 @@
 --!strict
 -- TutorialController: the guided first minutes (spec 4.6 and 4.8), shown with a pin and a
 -- glowing line, not text:
---   ChooseStarter (pick a monster at the stand) -> Ride (hop on) -> GoToIsland (the next island
---   your creature can reach, until you have reached a new island once).
+--   MakeStarter (the first-monster pop-up is open; no pin) -> Ride (hop on) -> GoToIsland (the
+--   next island your creature can reach, until you have reached a new island once).
 -- The current step is worked out from the server's snapshot and your creature, so a player who
 -- leaves mid-tutorial resumes at the right step and nothing here can skip progress.
 --
--- Guide targets are Studio parts: the starter stand's pedestals ("StarterPedestal"), and for
--- each island a part tagged "GuideTarget" with a string attribute "Island" at the start of the
--- way there (the river, the Thunder Trail, the wind tower).
+-- Guide targets are Studio parts: for each island, a part tagged "GuideTarget" with a string
+-- attribute "Island" at the start of the way there.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -20,9 +19,8 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local CreatureController = require(script.Parent.CreatureController)
 local DataController = require(script.Parent.DataController)
 
-export type Step = "ChooseStarter" | "Ride" | "GoToIsland"
+export type Step = "MakeStarter" | "Ride" | "GoToIsland"
 
-local PEDESTAL_TAG = "StarterPedestal"
 local GUIDE_TARGET_TAG = "GuideTarget"
 local MARKER_HEIGHT = 7
 local GUIDE_COLOR = Color3.fromRGB(150, 230, 50)
@@ -65,24 +63,12 @@ local function computeStep(): Step?
 		if CreatureController.hasCreature() then
 			return "Ride"
 		end
-		return if #data.creatures == 0 then "ChooseStarter" else nil
+		return if #data.creatures == 0 then "MakeStarter" else nil
 	end
 	if not data.funnel.FirstNewIsland and nextIsland(data) ~= nil then
 		return "GoToIsland"
 	end
 	return nil
-end
-
-local function standPosition(): Vector3?
-	local sum = Vector3.zero
-	local count = 0
-	for _, pedestal in CollectionService:GetTagged(PEDESTAL_TAG) do
-		if pedestal:IsA("BasePart") then
-			sum += pedestal.Position
-			count += 1
-		end
-	end
-	return if count > 0 then sum / count else nil
 end
 
 local function islandTarget(islandId: string): Vector3?
@@ -95,9 +81,7 @@ local function islandTarget(islandId: string): Vector3?
 end
 
 local function targetPosition(current: Step?): Vector3?
-	if current == "ChooseStarter" then
-		return standPosition()
-	elseif current == "Ride" then
+	if current == "Ride" then
 		local model = CreatureController.getCreature()
 		local hitbox = if model ~= nil then model.PrimaryPart else nil
 		return if hitbox ~= nil and not CreatureController.isRiding() then hitbox.Position else nil

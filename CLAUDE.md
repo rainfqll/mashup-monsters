@@ -198,7 +198,7 @@ switch on by reaching them the normal way; replace the travel pads), friendly NP
   (LegFL/LegFR/LegBL/LegBR, WingL/WingR sockets), so legs always stand at the body's corners. Riders sit on the head
   (or on a shell/hump). Creatures are built at 1.3x part size (CreatureAssembler CREATURE_SCALE). Old block models
   are in `ServerStorage.WorldBackup.OldPartModels`. World spot PartIds were remapped to the new ids.
-- W2b DONE (code; hands-on check pending): starter stand `MeadowIsle.StarterStand` (invisible `Pedestal_*` blocks tagged
+- W2b DONE then REPLACED by W2d: starter stand `MeadowIsle.StarterStand` (invisible `Pedestal_*` blocks tagged
   `StarterPedestal` with a "Starter" attribute, facing spawn; StarterService adds the Choose prompts, StarterController
   draws the monsters + signs and hides the prompts after you chose). Choosing stitches the starter right away (save v7
   `starterChosen`; records FirstPart + FirstStitch). Tutorial: ChooseStarter -> Ride -> GoToIsland (guide to the first
@@ -206,6 +206,15 @@ switch on by reaching them the normal way; replace the travel pads), friendly NP
   Meadow: river -> Lagoon (Swim), `Workspace.ThunderTrail` stone path to the first jump ledge (Super Jump), and
   `Workspace.WindRoute` (Wind Tower updraft on Meadow + WindCloud1/2 updrafts) -> Canyons (Glide). Old starter spots and
   the CollectStarterPart remote are gone (spots in `ServerStorage.WorldBackup`).
+- W2d DONE (user feedback on W2b: a pop-up, not 3 ready-made monsters, "less like Pokemon"): new players build
+  their first monster in the "Make your first Mashup!" pop-up (`UI/StarterScreen`): each slot flips between the
+  Ember/Tide/Thunder parts, live 3D preview, "Can/Goes to" line; it needs at least one travel ability. Server:
+  StarterService `CreateStarter` RemoteFunction + `Starters.parse`; save v7 `starterMade` (replaces the never-released
+  `starterChosen`). The stand (W2b) is in `ServerStorage.WorldBackup.StarterStand_W2b`. No coins in the home area
+  (Meadow coins in WorldBackup). The SpawnLocation is invisible (old look in WorldBackup).
+- Next (user decisions): ONE big connected land instead of islands; players spawn in "Stitch Square" (the home
+  plaza); walking/riding is free, teleporting needs a game pass (a portal in Stitch Square, locked for players
+  without the pass); no "grand portal".
 - W2c DONE (code; hands-on check pending): loose part pickups removed everywhere (spots in
   `ServerStorage.WorldBackup.OldPickupSpots`); 12 personal eggs (`EggSpots` folders, tag `EggSpot`, attributes Island +
   Tier, Treasure eggs also PartId): per island 2 Plain, 1 Shiny (hard spot), 1 Treasure holding the next island's key

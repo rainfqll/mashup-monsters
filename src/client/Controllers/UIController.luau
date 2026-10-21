@@ -29,6 +29,7 @@ local InventoryScreen = require(script.Parent.Parent.UI.InventoryScreen)
 local Panel = require(script.Parent.Parent.UI.Panel)
 local PingMenu = require(script.Parent.Parent.UI.PingMenu)
 local RevealOverlay = require(script.Parent.Parent.UI.RevealOverlay)
+local StarterScreen = require(script.Parent.Parent.UI.StarterScreen)
 local StitchScreen = require(script.Parent.Parent.UI.StitchScreen)
 local TradeInvite = require(script.Parent.Parent.UI.TradeInvite)
 local TradeScreen = require(script.Parent.Parent.UI.TradeScreen)
@@ -62,10 +63,15 @@ function UIController.start(): ()
 	local bundle = BundleScreen.create(screen, reveal, hud.showMessage)
 	local trade = TradeScreen.create(screen)
 	local tradeInvite = TradeInvite.create(screen)
+	local starter = StarterScreen.create(screen)
 	local panels: { Panel.Panel } =
 		{ inventory.panel, book.panel, stitch.panel, bundle.panel, trade.panel }
 
 	local function openOnly(target: Panel.Panel): ()
+		-- Nothing else opens over the first-monster pop-up.
+		if starter.panel.isOpen() then
+			return
+		end
 		for _, panel in panels do
 			if panel ~= target then
 				panel.close()
@@ -75,6 +81,9 @@ function UIController.start(): ()
 	end
 
 	local function toggle(target: Panel.Panel): ()
+		if starter.panel.isOpen() then
+			return
+		end
 		if target.isOpen() then
 			target.close()
 		else
@@ -253,6 +262,18 @@ function UIController.start(): ()
 				"Your free daily bundle is ready at the machine!",
 				Theme.colors.lime
 			)
+		end
+		-- A brand-new player builds their first monster before anything else.
+		local needsStarter = not snapshot.starterMade
+			and not snapshot.tutorialDone
+			and #snapshot.creatures == 0
+		if needsStarter and not starter.panel.isOpen() then
+			for _, panel in panels do
+				panel.close()
+			end
+			starter.panel.open()
+		elseif not needsStarter and starter.panel.isOpen() then
+			starter.panel.close()
 		end
 		inventory.render(snapshot)
 		book.render(snapshot)
