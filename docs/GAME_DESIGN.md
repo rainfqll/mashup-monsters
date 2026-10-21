@@ -89,6 +89,27 @@ Explore colorful floating islands, collect weird creature parts (duck heads, fro
 - Cosmetics (creature colors, lab decorations, stitch effects), a season pass, and convenience items that do not make the game pay-to-win.
 - Mystery bundles use in-game coins only in the prototype. Before adding any Robux-purchased random items, check Roblox's current policy for paid random items and our maturity label, and tell me what it requires.
 
+### 4.8 World Upgrade (agreed October 2026, after Phase 5c; overrides older notes where they differ)
+
+- **Look and feel:** much flashier and more detailed than the prototype: AI-generated 3D art (Studio), animated
+  creatures (walk, flap, wag, squash and stretch), VFX and sound on every action, terrain-based islands, lighting.
+- **Open world:** islands form one connected world. Teleport pads become **portals**; a portal switches on when you
+  first reach it the normal way. A **mini map** shows islands, portals, you and friends.
+- **Monsters (fantasy remake):** the farm animals are replaced by original fantasy creature families. Parts players
+  already own convert to the matching new part. Each creature has **3 moves from its parts** (head, legs, back) plus a
+  **signature move that depends on the mix**, and the **body gives a passive perk**. Moves cost **stamina**.
+- **Battles:** real-time action. You ride your creature, move, and tap move buttons; bosses telegraph big attacks
+  to dodge. Cartoon only (sparkles, bonks, splashes; enemies get "tired" and poof into stars): stays Minimal/Mild.
+- **Wild monsters** roam the outer islands (never on Meadow Isle) and guard eggs; each island has a **boss**.
+- **Start:** players pick one of a few **starter monsters** at a stand on Meadow Isle. No loose parts lying around.
+- **Eggs** are rare finds (hidden spots, wild monsters, bosses, coin bundles) and hatch a **part from that island's
+  creatures**. Rarer egg, better part.
+- **Warp item** (teleport to any switched-on portal from anywhere): a rare **chance drop from bosses**; it can also
+  be bought **directly** (no chance) for Robux or for a very high coin price. A **3x luck** boost raises drop chances.
+  Policy: any Robux purchase that changes a random outcome (the luck boost) counts as a paid random item: show the
+  exact odds before buying and hide it where PolicyService says paid random items are restricted. No gambling
+  visuals. Robux products come with the monetization work (spec 4.7), after the gameplay is fun.
+
 ## 5. Technical setup (propose, then wait for my OK)
 
 - Code on disk with Rojo so code lives in git and syncs into Studio. Use Rokit (or Aftman) to install tools: `rojo`, `selene` (linter), `stylua` (formatter), `luau-lsp`.

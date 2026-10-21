@@ -39,8 +39,9 @@ export type PartDefinition = {
 	colorTheme: Color3,
 	-- Free parts (the Stitchy Blob body) are owned by everyone, never run out, and never drop.
 	free: boolean?,
-	-- Which animal the part comes from. 2+ parts of one animal on a creature give a set bonus.
-	animal: string?,
+	-- Which creature family the part comes from (Ember, Tide, ...). 2+ parts of one family on a
+	-- creature give a set bonus.
+	family: string?,
 }
 
 -- One island (Config/Islands). `requires` is the ability that gets you there the first time;
@@ -71,7 +72,7 @@ export type CreatureSummary = {
 	abilities: { [Ability]: true },
 	-- Includes set bonuses.
 	stats: PartStats,
-	-- Animals with 2+ parts on this creature (set bonuses), sorted.
+	-- Families with 2+ parts on this creature (set bonuses), sorted.
 	sets: { string },
 	-- Secret Mashup id (Config/Combos) if the parts match a recipe.
 	secret: string?,

@@ -7,12 +7,12 @@ return table.freeze({
 		-- Studio defaults are WalkSpeed 16 / JumpPower 50; riding should feel a bit better.
 		walkSpeed = 20,
 		walkSpeedPerSpeedStat = 2,
-		-- The Speed ability (Cheetah Legs) on top of the stat bonus.
+		-- The Speed ability on top of the stat bonus.
 		speedAbilityBonus = 10,
 		jumpPower = 50,
 		jumpPowerPerJumpStat = 3,
-		-- The SuperJump ability (Frog Legs) on top of the stat bonus.
-		-- ~16 studs high with Frog Legs, vs ~6.5 for a normal jump.
+		-- The SuperJump ability (Thunder Legs) on top of the stat bonus.
+		-- ~16 studs high with Thunder Legs, vs ~6.5 for a normal jump.
 		superJumpBonus = 20,
 		-- How close you must be to your creature to hop on.
 		mountDistance = 25,

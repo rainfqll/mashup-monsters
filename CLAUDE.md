@@ -57,7 +57,7 @@ src/
     Creatures.luau        loadout rules: parseLoadout (validates untrusted input), summarize, MAX_SAVED
     CreatureAssembler.luau builds a creature Model from PartModels by snapping attachments
   server/RateLimit.luau  per-player remote cooldowns
-tools/build_part_models.luau  rebuilds ReplicatedStorage.PartModels in Studio (git backup of the models)
+tools/build_creature_parts.luau  turns AI-generated creatures into ReplicatedStorage.PartModels (model contract)
 docs/          GAME_DESIGN.md (spec), HOW_TO_SYNC.md (user setup steps)
 ```
 
@@ -117,7 +117,7 @@ server rejects bad stitch requests (far, wrong slot, not owned, junk).
 - Save v2: `creatures` (loadouts), `activeCreature` (0 = none), `discovered` (book). v1 migrates by marking
   inventory parts discovered; unparseable creatures are taken apart into the inventory, never deleted.
 - Remotes added: `Stitch` (Function, returns ok + message), `Unstitch`, `SetActiveCreature`, `ToggleRide`.
-- Studio world (not in git): `ReplicatedStorage.PartModels` (17 models; rebuild with tools/build_part_models.luau),
+- Studio world (not in git): `ReplicatedStorage.PartModels` (17 block models then; replaced by AI models in World Upgrade W2a),
   `MeadowIsle.Lab` with `StitchStation` (the Table part is tagged `StitchStation`), `MeadowIsle.TestPond`
   (raised pool + terrain water, for swim testing until Lily Lagoon).
 - Riding: server welds creature under the HumanoidRootPart, sets HipHeight = seatOffset.Y + halfHeight and
@@ -164,7 +164,7 @@ Night Hopper secret (aura, book, Bat set bonus), shelf display + collect, daily 
 - Studio world (not in git): `CliffsidePeaks` (JumpLedges from the Lagoon east edge, Summit pillar + SummitChest,
   GlideDeck), `WindyCanyons` (mesas, Updrafts, WindRings), `MeadowIsle.TravelPlaza` (3 pads + HomeArrival),
   `MeadowIsle.DisplayShelf` (Base tagged DisplayShelf, invisible Pedestal1-3 tagged ShelfPedestal), Lagoon `Travel`.
-  Part models: 25 (tools/build_part_models.luau).
+  Part models: 25 block models (replaced by AI models in World Upgrade W2a).
 - Known gaps: Glowcap Caves (Light) not built; weekly Secret hint and event parts (later); abilities Dig/Reveal/
   Climb/Carry/Shield still no gameplay; challenge repeat cooldowns reset on rejoin (a few coins at most);
   economy numbers are first guesses (tune after playtests).
@@ -182,6 +182,22 @@ switch on by reaching them the normal way; replace the travel pads), friendly NP
   3D icon (`UI/PartIcon`), pickups show the real part model in a ForceField bubble (client side, PickupController),
   Rare+ pickups glow. The machine's old look is in `ServerStorage.WorldBackup.BundleMachine_OldLook`; the tagged
   `Body` is now invisible and the mesh `Look` sits on the Pad.
+- Plan revised after W1 (user decisions, spec 4.8): fantasy remake with 3 moves + a signature move per mashup and a
+  body perk, stamina, real-time battles, wild monsters (never on Meadow) + island bosses, starter choice, rare eggs
+  that hatch island parts, warp item (boss chance drop, or buy outright; luck boost; Robux later with odds shown and
+  PolicyService checks). New order: W2 monsters + starters + eggs, W3 animation/juice, W4 battles, W5 open world +
+  portals + mini map, W6 bosses, W7 quest characters; then Phase 5d/5e.
+- W2a DONE: six families x 4 slots (Ember, Tide, Thunder = Common starters; Crystal, Glowcap, Moss), all AI-made
+  chibi creatures (upright: head, body, 2 arms + 2 legs = the Legs part, back piece). Save v6 converts old part and
+  secret ids (`Config/RetiredIds.luau`; Parts/Combos refuse retired ids). Part models come from
+  `tools/build_creature_parts.luau`: sources in `ServerStorage.ArtSource.CreatureStaging` (one generated creature per
+  family, already normalized), facing found from label votes (override with a "Facing" attribute; check with
+  measurements, not screenshots: Ember's turned head and Crystal's side eyes fooled the eye). Limbs snap one by one
+  (LegFL/LegFR/LegBL/LegBR, WingL/WingR sockets), so legs always stand at the body's corners. Riders sit on the head
+  (or on a shell/hump). Creatures are built at 1.3x part size (CreatureAssembler CREATURE_SCALE). Old block models
+  are in `ServerStorage.WorldBackup.OldPartModels`. World spot PartIds were remapped to the new ids.
+- Studio MCP: take ONE screen_capture at a time (parallel captures hang). Generated meshes need a minute before
+  their textures render (grey at first). Name segments with a comma string ("head, body, ...") to get clean names.
 
 Notes for the next session:
 - GitHub sign-in is set up on the Mac: `gh` (2.102.0, Intel build under Rosetta) lives in `~/.local/bin`,

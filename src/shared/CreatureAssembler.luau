@@ -4,8 +4,15 @@
 -- so both always agree on what a creature looks like.
 --
 -- Part models live in ReplicatedStorage.PartModels; their contract is documented in
--- tools/build_part_models.luau. A missing model becomes a gray block plus a warning, so a new
--- part without art yet never breaks stitching.
+-- tools/build_creature_parts.luau. A missing model becomes a gray block plus a warning, so a
+-- new part without art yet never breaks stitching.
+--
+-- Two kinds of snapping:
+--   * the whole piece moves so an attachment on its Root meets the body's socket of the same
+--     name (heads at NeckAttach, shells at BackAttach, tails at TailAttach, ...)
+--   * then each limb (a leg or a wing with its own attachment named after a socket, e.g.
+--     "LegFL" or "WingL") moves on its own to that socket, so four legs always stand at the
+--     body's four corners and wings sit on its shoulders, whatever body they are stitched to.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -13,22 +20,34 @@ local Creatures = require(script.Parent.Creatures)
 local Parts = require(script.Parent.Config.Parts)
 local Types = require(script.Parent.Types)
 
--- Which body attachment each slot snaps to. Back parts pick whichever they carry, so wings and
--- shells sit on top while tails sit at the rear.
+-- Which body attachment each slot snaps to as a whole. Back parts pick whichever they carry,
+-- so wings and shells sit on top while tails sit at the rear.
 local SOCKETS: { [Types.Slot]: { string } } = {
 	Head = { "NeckAttach" },
 	Legs = { "HipAttach" },
 	Back = { "BackAttach", "TailAttach" },
 }
 
+-- Body sockets a single limb can snap to on its own.
+local LIMB_SOCKETS: { [string]: true } = {
+	LegFL = true,
+	LegFR = true,
+	LegBL = true,
+	LegBR = true,
+	WingL = true,
+	WingR = true,
+}
+
 -- Seconds; bounded so a missing PartModels folder is a clear error instead of a hang.
 local WAIT_SECONDS = 15
+-- Part models are about as tall as a player; a creature you ride looks better a bit bigger.
+local CREATURE_SCALE = 1.3
 
 local function templates(): Instance
 	local folder = ReplicatedStorage:WaitForChild("PartModels", WAIT_SECONDS)
 	if folder == nil then
 		error(
-			"ReplicatedStorage.PartModels is missing (run tools/build_part_models.luau in Studio)"
+			"ReplicatedStorage.PartModels is missing (run tools/build_creature_parts.luau in Studio)"
 		)
 	end
 	return folder
@@ -66,6 +85,25 @@ local function clonePart(folder: Instance, id: string): Model
 	return template:Clone()
 end
 
+-- Moves each limb of a piece onto the body socket its attachment is named after. Limbs are
+-- separate parts (not the Root), so they move one by one; bodies without that socket keep the
+-- limb where the whole-piece snap put it.
+local function snapLimbs(piece: Model, body: Model): ()
+	for _, part in piece:GetDescendants() do
+		if part:IsA("BasePart") and part ~= piece.PrimaryPart then
+			for _, plug in part:GetChildren() do
+				if plug:IsA("Attachment") and LIMB_SOCKETS[plug.Name] then
+					local socket = findAttachment(body, plug.Name)
+					if socket ~= nil then
+						part.CFrame += socket.WorldPosition - plug.WorldPosition
+					end
+					break
+				end
+			end
+		end
+	end
+end
+
 local CreatureAssembler = {}
 
 -- Returns an anchored Model whose PrimaryPart "Hitbox" is an invisible box around the whole
@@ -80,7 +118,12 @@ function CreatureAssembler.build(loadout: Types.Loadout): Model
 	local body = clonePart(folder, loadout.Body or Creatures.DEFAULT_BODY)
 	body:PivotTo(CFrame.identity)
 	body.Parent = creature
-	local seat = findAttachment(body, "SeatAttach")
+	-- Where the rider sits: on a shell if there is one, else on the head, else on the body.
+	local seats: { [string]: Attachment } = {}
+	local bodySeat = findAttachment(body, "SeatAttach")
+	if bodySeat ~= nil then
+		seats.Body = bodySeat
+	end
 
 	for slot, socketNames in SOCKETS do
 		local id = (loadout :: any)[slot] :: string?
@@ -94,14 +137,16 @@ function CreatureAssembler.build(loadout: Types.Loadout): Model
 					break
 				end
 			end
+			snapLimbs(piece, body)
 			piece.Parent = creature
-			-- A shell on the back raises the seat so the rider sits on top of it.
 			local pieceSeat = findAttachment(piece, "SeatAttach")
-			if slot == "Back" and pieceSeat ~= nil then
-				seat = pieceSeat
+			if pieceSeat ~= nil then
+				seats[slot] = pieceSeat
 			end
 		end
 	end
+	local seat = seats.Back or seats.Head or seats.Body
+	creature:ScaleTo(CREATURE_SCALE)
 
 	local boxCFrame, boxSize = creature:GetBoundingBox()
 	local hitbox = Instance.new("Part")

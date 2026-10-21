@@ -18,12 +18,13 @@ local Islands = require(ReplicatedStorage.Shared.Config.Islands)
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local ProfileStore = require(ServerStorage.ServerPackages.ProfileStore)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local RetiredIds = require(ReplicatedStorage.Shared.Config.RetiredIds)
 local Shelf = require(ReplicatedStorage.Shared.Config.Shelf)
 local Trading = require(ReplicatedStorage.Shared.Config.Trading)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 -- Bump CURRENT_VERSION and add a step to migrate() whenever the save shape changes.
-local CURRENT_VERSION = 5
+local CURRENT_VERSION = 6
 
 export type PlayerData = {
 	version: number,
@@ -124,6 +125,52 @@ local function isIndex(value: unknown, max: number): boolean
 	return type(value) == "number" and value % 1 == 0 and value >= 0 and value <= max
 end
 
+-- v6: every retired part or secret id in a save becomes its replacement (RetiredIds). Counts
+-- add up when two old parts became the same new part. Malformed values are left for sanitize().
+local function convertRetiredIds(data: PlayerData): ()
+	local newPartId = RetiredIds.parts
+	local inventory: { [string]: number } = {}
+	for partId, count in data.inventory do
+		local id = newPartId[partId] or partId
+		if isCount(count) then
+			inventory[id] = (inventory[id] or 0) + count
+		end
+	end
+	data.inventory = inventory
+
+	for _, loadout in data.creatures do
+		if type(loadout) == "table" then
+			for _, slot in Creatures.SLOTS do
+				local partId = (loadout :: any)[slot]
+				if newPartId[partId] ~= nil then
+					(loadout :: any)[slot] = newPartId[partId]
+				end
+			end
+		end
+	end
+
+	local discovered: { [string]: true } = {}
+	for partId in data.discovered do
+		discovered[newPartId[partId] or partId] = true
+	end
+	data.discovered = discovered
+
+	local locks: { [string]: number } = {}
+	for partId, untilTime in data.tradeLockUntil do
+		local id = newPartId[partId] or partId
+		if isCount(untilTime) then
+			locks[id] = math.max(locks[id] or 0, untilTime)
+		end
+	end
+	data.tradeLockUntil = locks
+
+	local secrets: { [string]: true } = {}
+	for secretId in data.secretsFound do
+		secrets[RetiredIds.secrets[secretId] or secretId] = true
+	end
+	data.secretsFound = secrets
+end
+
 -- Upgrades older saves one version at a time. Runs after Reconcile(), so fields that are new
 -- in this version already exist (empty) and only need filling in.
 local function migrate(data: PlayerData): ()
@@ -151,6 +198,10 @@ local function migrate(data: PlayerData): ()
 		if data.funnel.FirstNewIsland then
 			data.unlockedIslands.LilyLagoon = true
 		end
+	end
+	if data.version < 6 then
+		-- v5 -> v6: the farm-animal parts became the fantasy families.
+		convertRetiredIds(data)
 	end
 	data.version = CURRENT_VERSION
 end

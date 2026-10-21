@@ -95,13 +95,13 @@ function Creatures.findSecret(loadout: Loadout): Combos.SecretDefinition?
 	return nil
 end
 
--- A funny name from the first word of each part: Duck Head + Frog Legs -> "Duck-Frog".
+-- A funny name from the first word of each part: Ember Head + Tide Tail -> "Ember-Tide".
 -- A Secret Mashup uses its secret name instead.
 function Creatures.summarize(loadout: Loadout): Types.CreatureSummary
 	local words: { string } = {}
 	local abilities: { [Types.Ability]: true } = {}
 	local stats: Types.PartStats = { speed = 0, jump = 0, swim = 0, glide = 0, carry = 0 }
-	local byAnimal: { [string]: { Types.PartDefinition } } = {}
+	local byFamily: { [string]: { Types.PartDefinition } } = {}
 
 	for _, definition in Creatures.definitions(loadout) do
 		local word = string.match(definition.displayName, "^%S+") or definition.displayName
@@ -115,19 +115,19 @@ function Creatures.summarize(loadout: Loadout): Types.CreatureSummary
 		for _, key in STAT_KEYS do
 			(stats :: any)[key] += (definition.stats :: any)[key]
 		end
-		local animal = definition.animal
-		if animal ~= nil then
-			local group = byAnimal[animal] or {}
+		local family = definition.family
+		if family ~= nil then
+			local group = byFamily[family] or {}
 			table.insert(group, definition)
-			byAnimal[animal] = group
+			byFamily[family] = group
 		end
 	end
 
-	-- Set bonus: each extra part of one animal boosts the stats that animal's parts give.
+	-- Set bonus: each extra part of one family boosts the stats that family's parts give.
 	local sets: { string } = {}
-	for animal, group in byAnimal do
+	for family, group in byFamily do
 		if #group >= 2 then
-			table.insert(sets, animal)
+			table.insert(sets, family)
 			local bonus = (#group - 1) * Combos.setBonusPerExtraPart
 			for _, key in STAT_KEYS do
 				local fromSet = 0

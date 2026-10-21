@@ -54,9 +54,9 @@ local function abilityText(summary: Types.CreatureSummary): string
 	end
 	table.sort(names)
 	local text = if #names > 0 then table.concat(names, " + ") else "No special moves"
-	-- Set bonuses are worth pointing out: they are why matching animals is a good idea.
-	for _, animal in summary.sets do
-		text ..= `  ·  {animal} set!`
+	-- Set bonuses are worth pointing out: they are why matching families is a good idea.
+	for _, family in summary.sets do
+		text ..= `  ·  {family} set!`
 	end
 	return text
 end
