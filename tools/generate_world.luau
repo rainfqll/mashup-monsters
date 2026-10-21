@@ -185,6 +185,11 @@ local function column(x, z)
 	return h, top, water
 end
 
+-- What lies deep under each top material (Rock unless listed): the desert is red rock all the way.
+local DEEP = {
+	[M.Sand] = M.Sandstone,
+	[M.Sandstone] = M.Sandstone,
+}
 local SUBSOIL = {
 	[M.Grass] = M.Ground,
 	[M.LeafyGrass] = M.Mud,
@@ -219,7 +224,7 @@ local function buildChunk(x0, z0)
 					materials[ix][iy][iz] = if depth < 4
 						then top
 						elseif depth < 14 then (SUBSOIL[top] or top)
-						else M.Rock
+						else (DEEP[top] or M.Rock)
 					occupancy[ix][iy][iz] = math.clamp((h - bottom) / VOXEL, 0, 1)
 				elseif water ~= nil and bottom < water then
 					materials[ix][iy][iz] = M.Water
