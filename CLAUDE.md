@@ -43,8 +43,9 @@ src/
                IslandService, ChallengeService, TradeService, CrewService
   client/      -> StarterPlayerScripts.Client  init.client.luau = only LocalScript, starts controllers in order
     Controllers/ InputController, DataController, UIController, PickupController, CreatureController,
-                 TutorialController, IslandController, ChallengeController, ShelfController, PingController
-    UI/        Theme, Panel (standard pop-up), PartCard (card + reflowing grid), Hud, InventoryScreen,
+                 TutorialController, IslandController, ChallengeController, ShelfController, FossilController,
+                 TradeController, PingController
+    UI/        Theme, Panel (standard pop-up), PartCard (card + reflowing grid), PartIcon (3D part picture), Hud, InventoryScreen,
                BookScreen, StitchScreen, CreaturePreview (spinning ViewportFrame), BundleScreen, RevealOverlay
   shared/      -> ReplicatedStorage.Shared
     Types.luau   Slot, Rarity, PartStats, PartDefinition
@@ -168,7 +169,19 @@ Night Hopper secret (aura, book, Bat set bonus), shelf display + collect, daily 
   Climb/Carry/Shield still no gameplay; challenge repeat cooldowns reset on rejoin (a few coins at most);
   economy numbers are first guesses (tune after playtests).
 
-**Next: Phase 5 (Co-op).** Start with a short plan + decisions.
+**Phase 5: Co-op: PAUSED after 5c** (5a pings/emotes/friend bonus, 5b fossils + Bolt, 5c trading; the 2-player
+test of trading/co-op dig/pings is still pending). Left: 5d crews + invite bonus, 5e fusion boss.
+
+**World Upgrade (between Phase 5c and 5d), user decisions:** open world + fast-travel portals (portal stones you
+switch on by reaching them the normal way; replace the travel pads), friendly NPCs with quests, Studio AI-generated
+3D art, done now before the rest of Phase 5. Milestones: W1 art, W2 connected world + portals, W3 detail pass
+(terrain, village, props, lighting), W4 NPCs + quests (save v6).
+- W1 DONE: `ReplicatedStorage.Art` (Studio-owned, AI-generated): `Egg` (Top + Bottom MeshParts centered on the
+  origin), `Coin` (MeshPart), `BundleMachine` (MeshPart, copy of the look). Textures are SurfaceAppearance ColorMaps
+  so `SurfaceAppearance.Color` can tint them (the reveal tints the egg to the rarity color). Part cards show a still
+  3D icon (`UI/PartIcon`), pickups show the real part model in a ForceField bubble (client side, PickupController),
+  Rare+ pickups glow. The machine's old look is in `ServerStorage.WorldBackup.BundleMachine_OldLook`; the tagged
+  `Body` is now invisible and the mesh `Look` sits on the Pad.
 
 Notes for the next session:
 - GitHub sign-in is set up on the Mac: `gh` (2.102.0, Intel build under Rosetta) lives in `~/.local/bin`,

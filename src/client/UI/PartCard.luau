@@ -1,11 +1,12 @@
 --!strict
--- One part shown as a card: color block (stand-in for a picture), name, rarity, and an
+-- One part shown as a card: a 3D picture of the part, name, rarity, and an
 -- optional count badge. Used by the inventory, the creature book and the stitch picker.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
 local Types = require(ReplicatedStorage.Shared.Types)
+local PartIcon = require(script.Parent.PartIcon)
 local Theme = require(script.Parent.Theme)
 
 local LOCKED_COLOR = Color3.fromRGB(60, 40, 90)
@@ -58,6 +59,14 @@ function PartCard.create(definition: Types.PartDefinition, options: Options?): G
 	Theme.corner(swatch, UDim.new(0.2, 0))
 	Theme.outline(swatch, 3)
 	swatch.Parent = card
+	-- The real part in 3D on a dark tile (the part is its own color, so a colored tile would
+	-- hide it). Locked cards stay a "?" so the book keeps its surprises.
+	local icon = if locked then nil else PartIcon.create(definition.id)
+	if icon ~= nil then
+		swatch.BackgroundColor3 = Theme.colors.purpleDeep
+		icon.Size = UDim2.fromScale(1, 1)
+		icon.Parent = swatch
+	end
 
 	local name = Instance.new("TextLabel")
 	name.Name = "PartName"

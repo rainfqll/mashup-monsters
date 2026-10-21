@@ -35,6 +35,9 @@ local MAX_COLLECT_DISTANCE = 12
 local HITBOX_SIZE = 4
 local PART_BUBBLE_TRANSPARENCY = 0.45
 local COIN_COLOR = Color3.fromRGB(255, 200, 40)
+local COIN_DIAMETER = 2.4
+-- Rarity order (Config/Rarities) from which part pickups get a light: Rare and up.
+local GLOW_FROM_ORDER = 3
 
 type Kind = "Part" | "Coin"
 
@@ -51,6 +54,13 @@ type Pickup = {
 }
 
 local pickups: { Pickup } = {}
+
+-- Studio-made coin mesh (ReplicatedStorage.Art.Coin), or nil to fall back to a plain disc.
+local function coinTemplate(): MeshPart?
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local coin = if art ~= nil then art:FindFirstChild("Coin") else nil
+	return if coin ~= nil and coin:IsA("MeshPart") then coin else nil
+end
 
 local function buildPickup(spot: BasePart, kind: Kind, partId: string?, folder: Folder): Pickup
 	local definition = if partId ~= nil then assert(Parts.get(partId)) else nil
@@ -70,7 +80,8 @@ local function buildPickup(spot: BasePart, kind: Kind, partId: string?, folder: 
 	hitbox.Shape = Enum.PartType.Ball
 	hitbox.Size = Vector3.one * HITBOX_SIZE
 	hitbox.CFrame = CFrame.new(spot.Position + Vector3.new(0, HITBOX_SIZE / 2, 0))
-	hitbox.Material = Enum.Material.Neon
+	-- Parts float in a shimmering bubble; coins have no visible bubble.
+	hitbox.Material = if kind == "Part" then Enum.Material.ForceField else Enum.Material.Neon
 	hitbox.Color = glowColor
 	hitbox.Transparency = hitboxTransparency
 	hitbox.Anchored = true
@@ -79,22 +90,30 @@ local function buildPickup(spot: BasePart, kind: Kind, partId: string?, folder: 
 	hitbox.CastShadow = false
 	hitbox.Parent = model
 
-	local core = Instance.new("Part")
-	core.Name = "Core"
+	local core: BasePart
+	local coinArt = coinTemplate()
 	if definition ~= nil then
-		-- A chunky block in the part's own color, standing in for the real part model.
+		-- A colored block; each client hides it and draws the real part model in its place
+		-- (PickupController), so the replicated pickup stays tiny.
+		core = Instance.new("Part")
 		core.Size = Vector3.one * (HITBOX_SIZE * 0.4)
 		core.Material = Enum.Material.SmoothPlastic
 		core.Color = definition.colorTheme
 		core.CFrame = hitbox.CFrame
+	elseif coinArt ~= nil then
+		core = coinArt:Clone()
+		core.Size = coinArt.Size * (COIN_DIAMETER / math.max(coinArt.Size.X, coinArt.Size.Y))
+		core.CFrame = hitbox.CFrame
 	else
-		-- A chunky gold coin standing on its edge (cylinder axis is X).
+		-- No coin art in ReplicatedStorage.Art: a plain gold disc standing on its edge.
+		core = Instance.new("Part")
 		core.Shape = Enum.PartType.Cylinder
-		core.Size = Vector3.new(0.5, 2.4, 2.4)
+		core.Size = Vector3.new(0.5, COIN_DIAMETER, COIN_DIAMETER)
 		core.Material = Enum.Material.Neon
 		core.Color = COIN_COLOR
 		core.CFrame = hitbox.CFrame * CFrame.Angles(0, math.rad(90), 0)
 	end
+	core.Name = "Core"
 	core.Anchored = true
 	core.CanCollide = false
 	core.CanTouch = false
@@ -111,6 +130,15 @@ local function buildPickup(spot: BasePart, kind: Kind, partId: string?, folder: 
 	sparkles.SpreadAngle = Vector2.new(180, 180)
 	sparkles.Size = NumberSequence.new(0.35, 0)
 	sparkles.Parent = hitbox
+
+	-- Rare and better parts glow softly, so they catch the eye from across an island.
+	if definition ~= nil and Rarities[definition.rarity].order >= GLOW_FROM_ORDER then
+		local light = Instance.new("PointLight")
+		light.Color = glowColor
+		light.Range = 10
+		light.Brightness = 1.5
+		light.Parent = hitbox
+	end
 
 	model.PrimaryPart = hitbox
 	model.Parent = folder

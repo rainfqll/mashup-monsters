@@ -1,10 +1,13 @@
 --!strict
--- The bundle "hatching" reveal: an egg pops in, wobbles harder and harder while glowing in the
--- part's rarity color, bursts into sparkles, and the part card appears. Deliberately an egg,
--- not reels or a wheel: the spec rules out anything that looks like gambling.
--- The part was already rolled and saved by the server; this is only the show.
+-- The bundle "hatching" reveal: a 3D egg pops in, wobbles harder and harder while it takes on
+-- the part's rarity color, its top bursts off in a shower of sparkles, and the part card
+-- appears. Deliberately an egg, not reels or a wheel: the spec rules out anything that looks
+-- like gambling. The part was already rolled and saved by the server; this is only the show.
+-- The egg art is ReplicatedStorage.Art.Egg (a Top and a Bottom MeshPart, centered on the
+-- origin); without it a plain white ball stands in.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
@@ -15,6 +18,11 @@ local Theme = require(script.Parent.Theme)
 local SPARKLE_COUNT = 14
 -- Taps before this are ignored, so a kid mashing the screen still sees the part.
 local MIN_SHOW_SECONDS = 0.8
+local EGG_FIELD_OF_VIEW = 30
+-- Where the egg is seen from: its best-looking side, a little above.
+local EGG_VIEW_DIRECTION = Vector3.new(-0.8, 0.15, 0.6).Unit
+-- The egg rocks around a point near its bottom, like an egg on a table.
+local EGG_ROCK_HEIGHT = 1.8
 
 export type RevealOverlay = {
 	play: (definition: Types.PartDefinition, isNew: boolean, onDone: () -> ()) -> (),
@@ -41,6 +49,46 @@ local function circle(parent: GuiObject, color: Color3): Frame
 	corner.Parent = frame
 	frame.Parent = parent
 	return frame
+end
+
+-- Runs `step(alpha)` every frame for `seconds`, with alpha going 0 -> 1, then returns.
+local function animate(seconds: number, step: (alpha: number) -> ()): ()
+	local started = os.clock()
+	while true do
+		local alpha = math.min((os.clock() - started) / seconds, 1)
+		step(alpha)
+		if alpha >= 1 then
+			return
+		end
+		RunService.RenderStepped:Wait()
+	end
+end
+
+local function buildEgg(): Model
+	local art = ReplicatedStorage:FindFirstChild("Art")
+	local template = if art ~= nil then art:FindFirstChild("Egg") else nil
+	if template ~= nil and template:IsA("Model") then
+		return template:Clone()
+	end
+	warn("[Mashup Monsters] ReplicatedStorage.Art.Egg is missing; using a plain egg")
+	local model = Instance.new("Model")
+	local top = Instance.new("Part")
+	top.Name = "Top"
+	top.Shape = Enum.PartType.Ball
+	top.Size = Vector3.new(3, 3.8, 3)
+	top.Color = Color3.fromRGB(255, 245, 225)
+	top.Parent = model
+	model.PrimaryPart = top
+	return model
+end
+
+-- Tints the egg art toward a color (white = its own colors; the plain fallback egg stays white).
+local function tintEgg(egg: Model, color: Color3): ()
+	for _, descendant in egg:GetDescendants() do
+		if descendant:IsA("SurfaceAppearance") then
+			descendant.Color = color
+		end
+	end
 end
 
 local RevealOverlay = {}
@@ -85,23 +133,33 @@ function RevealOverlay.create(parent: ScreenGui): RevealOverlay
 	glow.Position = UDim2.fromScale(0.5, 0.5)
 	glow.ZIndex = 51
 
-	local egg = Instance.new("Frame")
-	egg.Name = "Egg"
-	egg.AnchorPoint = Vector2.new(0.5, 0.5)
-	egg.Position = UDim2.fromScale(0.5, 0.5)
-	egg.Size = UDim2.fromScale(0.62, 0.8)
-	egg.BackgroundColor3 = Color3.fromRGB(255, 245, 225)
-	egg.ZIndex = 52
-	Theme.corner(egg, UDim.new(0.5, 0))
-	local eggStroke = Theme.outline(egg, 6)
+	local eggView = Instance.new("ViewportFrame")
+	eggView.Name = "Egg"
+	eggView.AnchorPoint = Vector2.new(0.5, 0.5)
+	eggView.Position = UDim2.fromScale(0.5, 0.5)
+	eggView.Size = UDim2.fromScale(1, 1)
+	eggView.BackgroundTransparency = 1
+	eggView.Ambient = Color3.fromRGB(200, 190, 215)
+	eggView.LightColor = Color3.new(1, 1, 1)
+	eggView.LightDirection = Vector3.new(-1, -1.5, 1)
+	eggView.ZIndex = 52
 	local eggScale = Instance.new("UIScale")
-	eggScale.Parent = egg
-	egg.Parent = stage
-	for _, spot in { { 0.3, 0.3, 0.2 }, { 0.68, 0.45, 0.16 }, { 0.42, 0.7, 0.22 } } do
-		local dot = circle(egg, Theme.colors.purple)
-		dot.Position = UDim2.fromScale(spot[1], spot[2])
-		dot.Size = UDim2.fromScale(spot[3], spot[3] * 0.78)
-		dot.ZIndex = 53
+	eggScale.Parent = eggView
+	eggView.Parent = stage
+	local eggCamera = Instance.new("Camera")
+	eggCamera.FieldOfView = EGG_FIELD_OF_VIEW
+	eggCamera.CFrame = CFrame.lookAt(EGG_VIEW_DIRECTION * 7.5, Vector3.zero)
+	eggCamera.Parent = eggView
+	eggView.CurrentCamera = eggCamera
+	-- Rocking around the camera's line of sight reads as "side to side" on screen.
+	local rockAxis = -EGG_VIEW_DIRECTION
+	local rockPivot = CFrame.new(0, -EGG_ROCK_HEIGHT, 0)
+	local egg: Model? = nil
+
+	local function rock(model: Model, angle: number): ()
+		model:PivotTo(
+			rockPivot * CFrame.fromAxisAngle(rockAxis, math.rad(angle)) * rockPivot:Inverse()
+		)
 	end
 
 	local headline = Instance.new("TextLabel")
@@ -167,11 +225,15 @@ function RevealOverlay.create(parent: ScreenGui): RevealOverlay
 		end
 		headline.Text = ""
 		hint.Visible = false
-		egg.Visible = true
-		egg.Rotation = 0
-		egg.BackgroundTransparency = 0
-		eggStroke.Color = Theme.colors.outline
-		eggStroke.Transparency = 0
+		if egg ~= nil then
+			egg:Destroy()
+		end
+		local newEgg = buildEgg()
+		newEgg:PivotTo(CFrame.identity)
+		newEgg.Parent = eggView
+		egg = newEgg
+		eggView.Visible = true
+		eggView.ImageTransparency = 0
 		eggScale.Scale = 0
 		glow.Size = UDim2.fromScale(0, 0)
 		glow.BackgroundColor3 = color
@@ -183,24 +245,33 @@ function RevealOverlay.create(parent: ScreenGui): RevealOverlay
 			tween(eggScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
 			task.wait(0.45)
 
-			-- Wobbles grow stronger and the glow swells: anticipation, not a spin.
+			-- Wobbles grow stronger and the glow swells: anticipation, not a spin. Halfway
+			-- through, the shell starts to shine in the rarity color.
 			for round = 1, 3 do
 				local angle = 8 + round * 6
-				tween(egg, 0.08, { Rotation = -angle }).Completed:Wait()
-				tween(egg, 0.12, { Rotation = angle }).Completed:Wait()
-				tween(egg, 0.08, { Rotation = 0 }).Completed:Wait()
+				animate(0.28, function(alpha)
+					rock(newEgg, angle * math.sin(alpha * math.pi * 2))
+				end)
 				tween(glow, 0.2, { Size = UDim2.fromScale(0.5 + round * 0.25, 0.5 + round * 0.25) })
-				if round == 2 then
-					eggStroke.Color = color
+				if round >= 2 then
+					tintEgg(newEgg, Color3.new(1, 1, 1):Lerp(color, round * 0.3))
 				end
 				task.wait(0.22)
 			end
 
-			-- Burst: the egg pops and sparkles fly out in the rarity color.
-			tween(eggScale, 0.18, { Scale = 1.35 })
-			tween(egg, 0.18, { BackgroundTransparency = 1 })
-			tween(eggStroke, 0.18, { Transparency = 1 })
+			-- Burst: the top of the shell flies off, the rest fades, sparkles fly out.
+			local top = newEgg:FindFirstChild("Top")
+			local topStart = if top ~= nil and top:IsA("BasePart") then top.CFrame else nil
+			tween(eggScale, 0.18, { Scale = 1.15 })
 			tween(glow, 0.5, { Size = UDim2.fromScale(1.6, 1.6), BackgroundTransparency = 1 })
+			task.spawn(animate, 0.3, function(alpha)
+				if top ~= nil and top:IsA("BasePart") and topStart ~= nil then
+					top.CFrame = CFrame.new(0, alpha * 5, 0)
+						* topStart
+						* CFrame.fromAxisAngle(rockAxis, alpha * 1.2)
+				end
+				eggView.ImageTransparency = alpha * alpha
+			end)
 			for index = 1, SPARKLE_COUNT do
 				local sparkle = circle(stage, color)
 				sparkle.Position = UDim2.fromScale(0.5, 0.5)
@@ -215,8 +286,8 @@ function RevealOverlay.create(parent: ScreenGui): RevealOverlay
 				tween(sparkle, 0.6, { Position = goal, BackgroundTransparency = 1 })
 				task.delay(0.65, sparkle.Destroy, sparkle)
 			end
-			task.wait(0.15)
-			egg.Visible = false
+			task.wait(0.3)
+			eggView.Visible = false
 
 			local card = PartCard.create(definition)
 			card.Size = UDim2.fromScale(1, 1)
