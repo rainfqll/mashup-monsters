@@ -1,12 +1,14 @@
 --!strict
--- IslandService: knows which island each player is on and keeps the progression honest.
+-- IslandService: knows which region ("island" in code and saves) each player is in and keeps
+-- the progression honest. Since the World Upgrade the regions are parts of one connected land.
 --
--- Islands come from Config/Islands; the world pieces (zones, arrival points, travel pads) are
+-- Regions come from Config/Islands; the world pieces (zones, arrival points, travel pads) are
 -- built in Studio and carry an "Island" id attribute (see that file).
--- * Ability gates: the first visit to an island needs its ability while riding (Swim for Lily
---   Lagoon, Super Jump for Cliffside Peaks, Glide for Windy Canyons). Arriving that way unlocks
---   the island for good; arriving any other way (an exploit, a glitch) sends you home. The
---   world itself is the real gate (water, high ledges, wide gaps); this is the server's check.
+-- * Ability gates: the first visit to a region needs its ability while riding (Swim across the
+--   river to Lily Lagoon, Super Jump up the cliff to Cliffside Peaks, Glide over the chasm to
+--   Windy Canyons). Arriving that way unlocks it for good; arriving any other way (an exploit, a
+--   glitch) puts you back where you last stood. The land itself is the real gate; this is the
+--   server's check.
 -- * Water: the client bounces non-swimmers out instantly (CreatureController). This is the
 --   server's own check; it waits a moment so it never fights the client's smoother bounce.
 -- * Falling off an island puts you back where you last stood (no deaths, no long walks).
@@ -36,6 +38,9 @@ local WATER_GRACE = 1
 -- Below this height you have fallen off the islands.
 local VOID_Y = -40
 local PAD_DISTANCE = 16
+-- Characters can't walk up anything steeper (Roblox allows 89 degrees by default). Smooth
+-- terrain turns cliffs and the jump steps into very steep slopes, and those must stay gates.
+local MAX_SLOPE_ANGLE = 50
 
 type Watch = {
 	lastSafe: CFrame?,
@@ -97,6 +102,16 @@ local function sendHome(player: Player, watch: Watch): ()
 	end
 end
 
+-- Back to the last safe spot (outside the region you weren't allowed into), or home.
+local function sendBack(player: Player, watch: Watch): ()
+	local safe = watch.lastSafe
+	if safe ~= nil then
+		CreatureService.teleport(player, safe)
+	else
+		sendHome(player, watch)
+	end
+end
+
 -- Somewhere you may stand: not water, and not an island you haven't unlocked yet.
 local function isSafeSpot(player: Player, position: Vector3): boolean
 	local island = islandAt(position)
@@ -112,11 +127,7 @@ local function checkFooting(player: Player, watch: Watch, now: number): ()
 
 	if root.Position.Y < VOID_Y then
 		watch.inWaterSince = nil
-		if watch.lastSafe ~= nil then
-			CreatureService.teleport(player, watch.lastSafe :: CFrame)
-		else
-			sendHome(player, watch)
-		end
+		sendBack(player, watch)
 		return
 	end
 
@@ -156,11 +167,11 @@ local function checkIsland(player: Player, watch: Watch): ()
 		local needed = island.requires
 		if needed ~= nil and not CreatureService.ridingWith(player, needed) then
 			notify(player, `You need {Islands.abilityName(needed)} to reach {island.displayName}!`)
-			sendHome(player, watch)
+			sendBack(player, watch)
 			return
 		end
 		if PlayerDataService.unlockIsland(player, islandId) then
-			notify(player, `{island.displayName} unlocked! Its travel pad at your lab works now.`)
+			notify(player, `You found {island.displayName}!`)
 		end
 	end
 	PlayerDataService.recordMilestone(player, "FirstNewIsland")
@@ -229,6 +240,22 @@ function IslandService.start(): ()
 		warn(`[Mashup Monsters] no {ARRIVAL_TAG} part for the home island; falls can't be rescued`)
 	end
 
+	local function limitSlope(character: Model): ()
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if humanoid ~= nil and humanoid:IsA("Humanoid") then
+			humanoid.MaxSlopeAngle = MAX_SLOPE_ANGLE
+		end
+	end
+	local function watchCharacters(player: Player): ()
+		player.CharacterAdded:Connect(limitSlope)
+		if player.Character ~= nil then
+			task.spawn(limitSlope, player.Character)
+		end
+	end
+	Players.PlayerAdded:Connect(watchCharacters)
+	for _, player in Players:GetPlayers() do
+		watchCharacters(player)
+	end
 	Players.PlayerRemoving:Connect(function(player)
 		watches[player] = nil
 	end)

@@ -11,7 +11,8 @@ local Types = require(script.Parent.Parent.Types)
 type IslandDefinition = Types.IslandDefinition
 
 local LIST: { IslandDefinition } = {
-	{ id = "MeadowIsle", displayName = "Meadow Isle", order = 1 },
+	-- The home region around Stitch Square (the id is from when it was an island).
+	{ id = "MeadowIsle", displayName = "Stitch Square", order = 1 },
 	{ id = "LilyLagoon", displayName = "Lily Lagoon", order = 2, requires = "Swim" },
 	{ id = "CliffsidePeaks", displayName = "Cliffside Peaks", order = 3, requires = "SuperJump" },
 	{ id = "WindyCanyons", displayName = "Windy Canyons", order = 4, requires = "Glide" },

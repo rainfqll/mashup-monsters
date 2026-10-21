@@ -215,6 +215,19 @@ switch on by reaching them the normal way; replace the travel pads), friendly NP
 - Next (user decisions): ONE big connected land instead of islands; players spawn in "Stitch Square" (the home
   plaza); walking/riding is free, teleporting needs a game pass (a portal in Stitch Square, locked for players
   without the pass); no "grand portal".
+- W3a DONE (logic tested; visual check pending): ONE connected land from Roblox Terrain, made by
+  `tools/generate_world.luau` (run in Studio in row batches; tune constants and re-run). Layout: Stitch Square
+  (cobblestone plaza, y~21.8 rendered) in the home meadows; north a 52-wide river (Swim) to the Lily Lagoon
+  wetlands; east a cliff with 4 jump steps (rises ~11-13, Super Jump only) up to the Cliffside Peaks plateau (~82)
+  with snowy mountains and a stream; south a bottomless chasm (Glide: Wind Bluff hill + 2 `ChasmWinds` updrafts) to
+  the Windy Canyons desert (floor ~42, mesas ~94, open ring valley); ocean and beaches around. Region ids are the
+  old island ids (zones resized: home x -640..252 z -210..210; river and chasm belong to no region). Characters'
+  `MaxSlopeAngle` is 50 (IslandService) so steep terrain stays a gate. A failed gate now puts you back at your last
+  safe spot. Old island parts are in `ServerStorage.WorldBackup.Islands_v1` (tags stripped). Kept and moved: lab,
+  hatchery, shelf (lifted 1.8), fossils, eggs, 36 coins (12 per region, none at home), summit chest (plateau
+  ~(290,82,100)), Wind Rings + updrafts (ring valley), `WaySigns` (signs + GuideTargets at the dock, the steps
+  and the bluff). Home region shows as "Stitch Square". Terrain colors set; animated grass (Terrain.Decoration)
+  must be ticked by hand in Studio.
 - W2c DONE (code; hands-on check pending): loose part pickups removed everywhere (spots in
   `ServerStorage.WorldBackup.OldPickupSpots`); 12 personal eggs (`EggSpots` folders, tag `EggSpot`, attributes Island +
   Tier, Treasure eggs also PartId): per island 2 Plain, 1 Shiny (hard spot), 1 Treasure holding the next island's key
