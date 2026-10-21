@@ -9,6 +9,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Islands = require(ReplicatedStorage.Shared.Config.Islands)
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local Trading = require(ReplicatedStorage.Shared.Config.Trading)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -16,6 +17,7 @@ local ChallengeController = require(script.Parent.ChallengeController)
 local CreatureController = require(script.Parent.CreatureController)
 local Daily = require(ReplicatedStorage.Shared.Daily)
 local DataController = require(script.Parent.DataController)
+local EggController = require(script.Parent.EggController)
 local IslandController = require(script.Parent.IslandController)
 local PingController = require(script.Parent.PingController)
 local TradeController = require(script.Parent.TradeController)
@@ -100,10 +102,6 @@ function UIController.start(): ()
 			return
 		end
 		machinePart = if parent ~= nil and parent:IsA("BasePart") then parent else nil
-		-- Tutorial: the stitch screen opens with the starter parts already in their slots.
-		if target == stitch.panel and TutorialController.getStep() == "Stitch" then
-			stitch.preselect(TutorialController.starterLoadout())
-		end
 		openOnly(target)
 	end)
 	RunService.Heartbeat:Connect(function()
@@ -131,10 +129,9 @@ function UIController.start(): ()
 	end
 	CollectionService:GetInstanceAddedSignal(BUNDLE_PROMPT_TAG):Connect(syncBundlePrompts)
 
-	-- Tutorial hints on the HUD and the stitch lever.
+	-- Tutorial hint on the HUD: the Ride button pulses until you hop on.
 	local stopRidePulse: (() -> ())? = nil
 	local function syncTutorialHints(step: TutorialController.Step?): ()
-		stitch.setLeverHint(step == "Stitch")
 		local pulseRide = step == "Ride"
 		if pulseRide and stopRidePulse == nil then
 			stopRidePulse = Theme.pulse(hud.rideButton)
@@ -145,6 +142,33 @@ function UIController.start(): ()
 	end
 	TutorialController.onStepChanged(syncTutorialHints)
 	syncTutorialHints(TutorialController.getStep())
+
+	-- An egg hatched: the same hatching show as bundles. If the part opens an island you haven't
+	-- reached, say so: that is the reason to go back to the lab and stitch.
+	EggController.onHatched(function(partId, isNew)
+		local definition = Parts.get(partId)
+		if definition == nil then
+			return
+		end
+		reveal.play(definition, isNew, function()
+			local snapshot = DataController.get()
+			for _, island in Islands.list do
+				local ability = island.requires
+				if
+					ability ~= nil
+					and table.find(definition.abilities, ability)
+					and not (snapshot ~= nil and snapshot.unlockedIslands[island.id])
+				then
+					hud.showMessage(
+						`{Islands.abilityName(ability)}! Stitch it on at the lab to reach {island.displayName}.`,
+						Theme.colors.lime
+					)
+					return
+				end
+			end
+			hud.showMessage("Stitch it onto a monster at the lab!", Theme.colors.lime)
+		end)
+	end)
 
 	IslandController.onIslandEntered(function(displayName)
 		hud.showMessage(displayName, Theme.colors.lime)

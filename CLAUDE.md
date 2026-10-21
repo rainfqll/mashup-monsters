@@ -39,19 +39,21 @@ Original IP only, no Toolbox scripts.
 default.project.json   Rojo mapping (only code folders)
 src/
   server/      -> ServerScriptService.Server   init.server.luau = only server Script, starts services in order
-    Services/  PlayerDataService, PickupService, StitchService, BundleService, ShelfService, CreatureService,
-               IslandService, ChallengeService, TradeService, CrewService
+    Services/  PlayerDataService, SocialService, PickupService, StarterService, EggService, StitchService,
+               BundleService, ShelfService, CreatureService, IslandService, ChallengeService, FossilService,
+               TradeService, CrewService
   client/      -> StarterPlayerScripts.Client  init.client.luau = only LocalScript, starts controllers in order
     Controllers/ InputController, DataController, UIController, PickupController, CreatureController,
-                 TutorialController, IslandController, ChallengeController, ShelfController, FossilController,
-                 TradeController, PingController
+                 TutorialController, IslandController, ChallengeController, ShelfController, StarterController,
+                 EggController, FossilController, TradeController, PingController
     UI/        Theme, Panel (standard pop-up), PartCard (card + reflowing grid), PartIcon (3D part picture), Hud, InventoryScreen,
                BookScreen, StitchScreen, CreaturePreview (spinning ViewportFrame), BundleScreen, RevealOverlay
   shared/      -> ReplicatedStorage.Shared
     Types.luau   Slot, Rarity, PartStats, PartDefinition
     Remotes.luau the ONLY place remotes are declared; server calls Remotes.createAll() at startup
     Config/      Parts, Rarities, Abilities (riding/glide/updraft tuning), Bundles (price, odds, coin value),
-                 Islands (order + gate ability), Challenges, Combos (set bonus, Secret Mashups), Shelf (coins/hour)
+                 Islands (order + gate ability), Challenges, Combos (set bonus, Secret Mashups), Shelf (coins/hour),
+                 Starters (the 3 starter monsters), Eggs (tiers, odds, island families), RetiredIds (old ids -> new)
     Daily.luau   UTC day, daily reset, Part of the Day (same for everyone, no storage)
     Water.luau   terrain-water check at the feet, shared by the client and server water gates
     Creatures.luau        loadout rules: parseLoadout (validates untrusted input), summarize, MAX_SAVED
@@ -196,6 +198,20 @@ switch on by reaching them the normal way; replace the travel pads), friendly NP
   (LegFL/LegFR/LegBL/LegBR, WingL/WingR sockets), so legs always stand at the body's corners. Riders sit on the head
   (or on a shell/hump). Creatures are built at 1.3x part size (CreatureAssembler CREATURE_SCALE). Old block models
   are in `ServerStorage.WorldBackup.OldPartModels`. World spot PartIds were remapped to the new ids.
+- W2b DONE (code; hands-on check pending): starter stand `MeadowIsle.StarterStand` (invisible `Pedestal_*` blocks tagged
+  `StarterPedestal` with a "Starter" attribute, facing spawn; StarterService adds the Choose prompts, StarterController
+  draws the monsters + signs and hides the prompts after you chose). Choosing stitches the starter right away (save v7
+  `starterChosen`; records FirstPart + FirstStitch). Tutorial: ChooseStarter -> Ride -> GoToIsland (guide to the first
+  locked island your creature can reach; targets are `GuideTarget` parts with an "Island" attribute). Routes from
+  Meadow: river -> Lagoon (Swim), `Workspace.ThunderTrail` stone path to the first jump ledge (Super Jump), and
+  `Workspace.WindRoute` (Wind Tower updraft on Meadow + WindCloud1/2 updrafts) -> Canyons (Glide). Old starter spots and
+  the CollectStarterPart remote are gone (spots in `ServerStorage.WorldBackup`).
+- W2c DONE (code; hands-on check pending): loose part pickups removed everywhere (spots in
+  `ServerStorage.WorldBackup.OldPickupSpots`); 12 personal eggs (`EggSpots` folders, tag `EggSpot`, attributes Island +
+  Tier, Treasure eggs also PartId): per island 2 Plain, 1 Shiny (hard spot), 1 Treasure holding the next island's key
+  part (Lagoon: Thunder Legs, Peaks: Ember Wings, Canyons: Tide Tail), so every starter can reach all islands. Server
+  rolls from the island's families (EggService, `CollectEgg` RemoteFunction); save v7 `eggSpots` (6 h respawn per
+  player). Hatching plays the egg reveal and says which island a new ability opens.
 - Studio MCP: take ONE screen_capture at a time (parallel captures hang). Generated meshes need a minute before
   their textures render (grey at first). Name segments with a comma string ("head, body, ...") to get clean names.
 

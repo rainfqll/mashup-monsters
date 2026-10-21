@@ -29,13 +29,14 @@ local DEFINITIONS: { [string]: RemoteKind } = {
 	SetActiveCreature = "Event",
 	-- Client -> server: () hop on or off your creature. The server checks distance.
 	ToggleRide = "Event",
-	-- Client -> server: (spotName) touched a personal tutorial starter part. Server checks the
-	-- spot is real, the player is next to it, and the tutorial is still running.
-	CollectStarterPart = "Event",
 	-- Client -> server: (kind?) open one mystery bundle at a nearby machine: "daily" for the free
 	-- daily one, otherwise it costs coins. Returns
 	-- (partId: string?, message: string?); the roll happens on the server.
 	OpenBundle = "Function",
+	-- Client -> server: (spotName) touched a monster egg. The server checks the spot, that you
+	-- are next to it and haven't found it lately, rolls the part, and returns
+	-- (partId: string?, message: string?).
+	CollectEgg = "Function",
 	-- Server -> client: (text) a short message for the toast, e.g. why a gate sent you home.
 	Notice = "Event",
 	-- Server -> client: (challengeId, nextRing, totalRings, secondsLeft) ring course progress;

@@ -1,35 +1,29 @@
 --!strict
--- TutorialController: the guided first session (spec 4.6), shown with arrows, not text.
---   CollectParts -> Stitch -> Ride, then a soft "go to Lily Lagoon" hint for swimmers.
--- The current step is worked out from the server's snapshot (which starter parts are taken,
--- whether a creature exists, which milestones are done), so a player who leaves mid-tutorial
--- resumes at the right step and nothing here can skip progress.
+-- TutorialController: the guided first minutes (spec 4.6 and 4.8), shown with a pin and a
+-- glowing line, not text:
+--   ChooseStarter (pick a monster at the stand) -> Ride (hop on) -> GoToIsland (the next island
+--   your creature can reach, until you have reached a new island once).
+-- The current step is worked out from the server's snapshot and your creature, so a player who
+-- leaves mid-tutorial resumes at the right step and nothing here can skip progress.
 --
--- It also draws the personal starter pickups: tagged "StarterSpot" parts in the world, visible
--- only to players still in the tutorial. Touching one asks the server (CollectStarterPart).
+-- Guide targets are Studio parts: the starter stand's pedestals ("StarterPedestal"), and for
+-- each island a part tagged "GuideTarget" with a string attribute "Island" at the start of the
+-- way there (the river, the Thunder Trail, the wind tower).
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Parts = require(ReplicatedStorage.Shared.Config.Parts)
-local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
-local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Islands = require(ReplicatedStorage.Shared.Config.Islands)
 local Types = require(ReplicatedStorage.Shared.Types)
 local CreatureController = require(script.Parent.CreatureController)
 local DataController = require(script.Parent.DataController)
 
-export type Step = "CollectParts" | "Stitch" | "Ride" | "GoToLagoon"
+export type Step = "ChooseStarter" | "Ride" | "GoToIsland"
 
-local STARTER_TAG = "StarterSpot"
-local STATION_TAG = "StitchStation"
+local PEDESTAL_TAG = "StarterPedestal"
 local GUIDE_TARGET_TAG = "GuideTarget"
-local LAGOON_TARGET_NAME = "LagoonRiver"
--- PickupController animates models with this tag.
-local PICKUP_TAG = "PartPickup"
--- If the server hasn't confirmed a touched starter part by then, show it again.
-local PENDING_SECONDS = 3
 local MARKER_HEIGHT = 7
 local GUIDE_COLOR = Color3.fromRGB(150, 230, 50)
 
@@ -39,113 +33,27 @@ local step: Step? = nil
 local stepListeners: { (Step?) -> () } = {}
 local snapshot: Types.PlayerSnapshot? = nil
 
--- spot name -> local pickup model; pending = touched, waiting for the server
-local starterModels: { [string]: Model } = {}
-local pendingSince: { [string]: number } = {}
-
 local markerPart: Part
 local markerGui: BillboardGui
 local beam: Beam
 local beamStart: Attachment? = nil
 
------------------------------------------------------------------ starter pickups
-
-local function buildStarterPickup(spot: BasePart, definition: Types.PartDefinition): Model
-	local model = Instance.new("Model")
-	model.Name = `Starter_{spot.Name}`
-	local hitbox = Instance.new("Part")
-	hitbox.Name = "Hitbox"
-	hitbox.Shape = Enum.PartType.Ball
-	hitbox.Size = Vector3.one * 4
-	hitbox.CFrame = CFrame.new(spot.Position + Vector3.new(0, 2, 0))
-	hitbox.Material = Enum.Material.Neon
-	hitbox.Color = Rarities[definition.rarity].color
-	hitbox.Transparency = 0.45
-	hitbox.Anchored = true
-	hitbox.CanCollide = false
-	hitbox.CanQuery = false
-	hitbox.CastShadow = false
-	hitbox.Parent = model
-	local core = Instance.new("Part")
-	core.Name = "Core"
-	core.Size = Vector3.one * 1.6
-	core.CFrame = hitbox.CFrame
-	core.Color = definition.colorTheme
-	core.Material = Enum.Material.SmoothPlastic
-	core.Anchored = true
-	core.CanCollide = false
-	core.CanTouch = false
-	core.CanQuery = false
-	core.Parent = model
-	model.PrimaryPart = hitbox
-
-	hitbox.Touched:Connect(function(hit)
-		local character = player.Character
-		if
-			character == nil
-			or not hit:IsDescendantOf(character)
-			or pendingSince[spot.Name] ~= nil
-		then
-			return
-		end
-		pendingSince[spot.Name] = os.clock()
-		model.Parent = nil
-		Remotes.event("CollectStarterPart"):FireServer(spot.Name)
-	end)
-
-	CollectionService:AddTag(model, PICKUP_TAG)
-	return model
-end
-
-local function starterSpots(): { BasePart }
-	local spots = {}
-	for _, spot in CollectionService:GetTagged(STARTER_TAG) do
-		if spot:IsA("BasePart") then
-			table.insert(spots, spot)
-		end
-	end
-	return spots
-end
-
--- Show exactly the starter pickups this player may still collect.
-local function syncStarterPickups(): ()
-	local data = snapshot
-	local showAny = data ~= nil and not data.tutorialDone
-	for _, spot in starterSpots() do
-		local name = spot.Name
-		local partId = spot:GetAttribute("PartId")
-		local definition = if type(partId) == "string" then Parts.get(partId) else nil
-		local collected = data ~= nil and data.starterCollected[name] == true
-		local waiting = pendingSince[name] ~= nil
-			and os.clock() - pendingSince[name] < PENDING_SECONDS
-		local shouldShow = showAny and not collected and not waiting and definition ~= nil
-
-		local model = starterModels[name]
-		if shouldShow then
-			if model == nil then
-				model = buildStarterPickup(spot, definition :: Types.PartDefinition)
-				starterModels[name] = model
-			end
-			pendingSince[name] = nil
-			model.Parent = workspace
-		elseif model ~= nil and (collected or not showAny) then
-			model:Destroy()
-			starterModels[name] = nil
-		end
-	end
-end
-
 ----------------------------------------------------------------- step logic
 
-local function countCollected(data: Types.PlayerSnapshot): (number, number)
-	local collected, total = 0, 0
-	for _, spot in starterSpots() do
-		total += 1
-		if data.starterCollected[spot.Name] then
-			collected += 1
+-- The first island (in progression order) you haven't reached yet that your creature can get
+-- to, or nil.
+local function nextIsland(data: Types.PlayerSnapshot): Types.IslandDefinition?
+	for _, island in Islands.list do
+		local ability = island.requires
+		if
+			ability ~= nil
+			and not data.unlockedIslands[island.id]
+			and CreatureController.creatureHas(ability)
+		then
+			return island
 		end
 	end
-	return collected, total
+	return nil
 end
 
 local function computeStep(): Step?
@@ -157,56 +65,46 @@ local function computeStep(): Step?
 		if CreatureController.hasCreature() then
 			return "Ride"
 		end
-		local collected, total = countCollected(data)
-		if #data.creatures == 0 and collected < total then
-			return "CollectParts"
-		end
-		return "Stitch"
+		return if #data.creatures == 0 then "ChooseStarter" else nil
 	end
-	-- Afterwards, only nudge toward the next island if the creature can actually swim there.
-	if not data.funnel.FirstNewIsland and CreatureController.creatureHas("Swim") then
-		return "GoToLagoon"
+	if not data.funnel.FirstNewIsland and nextIsland(data) ~= nil then
+		return "GoToIsland"
 	end
 	return nil
 end
 
-local function firstTagged(tag: string, name: string?): BasePart?
-	for _, instance in CollectionService:GetTagged(tag) do
-		if instance:IsA("BasePart") and (name == nil or instance.Name == name) then
-			return instance
+local function standPosition(): Vector3?
+	local sum = Vector3.zero
+	local count = 0
+	for _, pedestal in CollectionService:GetTagged(PEDESTAL_TAG) do
+		if pedestal:IsA("BasePart") then
+			sum += pedestal.Position
+			count += 1
+		end
+	end
+	return if count > 0 then sum / count else nil
+end
+
+local function islandTarget(islandId: string): Vector3?
+	for _, target in CollectionService:GetTagged(GUIDE_TARGET_TAG) do
+		if target:IsA("BasePart") and target:GetAttribute("Island") == islandId then
+			return target.Position
 		end
 	end
 	return nil
 end
 
 local function targetPosition(current: Step?): Vector3?
-	if current == "CollectParts" then
-		local character = player.Character
-		local root = if character ~= nil then character:FindFirstChild("HumanoidRootPart") else nil
-		local from = if root ~= nil and root:IsA("BasePart") then root.Position else Vector3.zero
-		local best: Vector3? = nil
-		for _, model in starterModels do
-			if model.Parent ~= nil and model.PrimaryPart ~= nil then
-				local position = (model.PrimaryPart :: BasePart).Position
-				if
-					best == nil
-					or (position - from).Magnitude < ((best :: Vector3) - from).Magnitude
-				then
-					best = position
-				end
-			end
-		end
-		return best
-	elseif current == "Stitch" then
-		local station = firstTagged(STATION_TAG)
-		return if station ~= nil then station.Position else nil
+	if current == "ChooseStarter" then
+		return standPosition()
 	elseif current == "Ride" then
 		local model = CreatureController.getCreature()
 		local hitbox = if model ~= nil then model.PrimaryPart else nil
 		return if hitbox ~= nil and not CreatureController.isRiding() then hitbox.Position else nil
-	elseif current == "GoToLagoon" then
-		local target = firstTagged(GUIDE_TARGET_TAG, LAGOON_TARGET_NAME)
-		return if target ~= nil then target.Position else nil
+	elseif current == "GoToIsland" then
+		local data = snapshot
+		local island = if data ~= nil then nextIsland(data) else nil
+		return if island ~= nil then islandTarget(island.id) else nil
 	end
 	return nil
 end
@@ -316,7 +214,6 @@ end
 ----------------------------------------------------------------- public
 
 local function refresh(): ()
-	syncStarterPickups()
 	local newStep = computeStep()
 	if newStep ~= step then
 		step = newStep
@@ -337,19 +234,6 @@ function TutorialController.onStepChanged(listener: (Step?) -> ()): ()
 	table.insert(stepListeners, listener)
 end
 
--- The starter parts' loadout, so the stitch screen can pre-fill it during the tutorial.
-function TutorialController.starterLoadout(): Types.Loadout
-	local loadout: Types.Loadout = {}
-	for _, spot in starterSpots() do
-		local partId = spot:GetAttribute("PartId")
-		local definition = if type(partId) == "string" then Parts.get(partId) else nil
-		if definition ~= nil then
-			(loadout :: any)[definition.slot] = definition.id
-		end
-	end
-	return loadout
-end
-
 function TutorialController.start(): ()
 	buildGuide()
 	if player.Character ~= nil then
@@ -366,7 +250,7 @@ function TutorialController.start(): ()
 	end)
 	CreatureController.onStateChanged(refresh)
 
-	-- Steps change rarely, but pending pickups and the nearest target need a slow re-check.
+	-- Steps change rarely; a slow re-check covers creatures and targets streaming in.
 	local nextRefresh = 0
 	RunService.Heartbeat:Connect(function()
 		local now = os.clock()

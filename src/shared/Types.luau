@@ -87,7 +87,10 @@ export type PlayerSnapshot = {
 	activeCreature: number,
 	discovered: { [string]: true },
 	tutorialDone: boolean,
-	starterCollected: { [string]: true },
+	-- Config/Starters id of the starter monster chosen at the stand, "" = none yet
+	starterChosen: string,
+	-- egg spot name -> os.time() this player last found it (Config/Eggs)
+	eggSpots: { [string]: number },
 	funnel: { [string]: true },
 	unlockedIslands: { [string]: true },
 	challengesDone: { [string]: true },

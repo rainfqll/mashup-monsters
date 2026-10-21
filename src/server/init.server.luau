@@ -16,6 +16,8 @@ local START_ORDER: { Service } = {
 	require(Services.PlayerDataService),
 	require(Services.SocialService),
 	require(Services.PickupService),
+	require(Services.StarterService),
+	require(Services.EggService),
 	require(Services.StitchService),
 	require(Services.BundleService),
 	require(Services.ShelfService),

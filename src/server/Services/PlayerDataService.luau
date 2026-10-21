@@ -14,17 +14,19 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Creatures = require(ReplicatedStorage.Shared.Creatures)
 local Daily = require(ReplicatedStorage.Shared.Daily)
+local Eggs = require(ReplicatedStorage.Shared.Config.Eggs)
 local Islands = require(ReplicatedStorage.Shared.Config.Islands)
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local ProfileStore = require(ServerStorage.ServerPackages.ProfileStore)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local RetiredIds = require(ReplicatedStorage.Shared.Config.RetiredIds)
 local Shelf = require(ReplicatedStorage.Shared.Config.Shelf)
+local Starters = require(ReplicatedStorage.Shared.Config.Starters)
 local Trading = require(ReplicatedStorage.Shared.Config.Trading)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 -- Bump CURRENT_VERSION and add a step to migrate() whenever the save shape changes.
-local CURRENT_VERSION = 6
+local CURRENT_VERSION = 7
 
 export type PlayerData = {
 	version: number,
@@ -39,7 +41,8 @@ export type PlayerData = {
 	discovered: { [string]: true },
 	-- v3: the guided first session is over (set on the first ride)
 	tutorialDone: boolean,
-	-- v3: which personal starter pickups (by spot name) were collected during the tutorial
+	-- v3: which personal starter pickups (by spot name) were collected during the old tutorial.
+	-- Unused since v7 (the starter stand); kept so old saves load unchanged.
 	starterCollected: { [string]: true },
 	-- v3: first-time milestones already logged to analytics (see MILESTONES)
 	funnel: { [string]: true },
@@ -57,6 +60,10 @@ export type PlayerData = {
 	secretsFound: { [string]: true },
 	-- v5: partId -> os.time() until which it can't be traded (fresh Legendary+ parts)
 	tradeLockUntil: { [string]: number },
+	-- v7: the starter monster chosen at the stand (Config/Starters id), "" = none yet
+	starterChosen: string,
+	-- v7: egg spot name -> os.time() it was last found (it comes back after Eggs.respawnHours)
+	eggSpots: { [string]: number },
 }
 
 local TEMPLATE: PlayerData = {
@@ -76,6 +83,8 @@ local TEMPLATE: PlayerData = {
 	dailyBundleDay = 0,
 	secretsFound = {},
 	tradeLockUntil = {},
+	starterChosen = "",
+	eggSpots = {},
 }
 
 -- Onboarding funnel steps (Roblox AnalyticsService), logged once per player in this order.
@@ -203,6 +212,8 @@ local function migrate(data: PlayerData): ()
 		-- v5 -> v6: the farm-animal parts became the fantasy families.
 		convertRetiredIds(data)
 	end
+	-- v6 -> v7 needs no step: starterChosen and eggSpots start empty, and players who already
+	-- have a creature are past the tutorial, so the starter stand never offers them a free one.
 	data.version = CURRENT_VERSION
 end
 
@@ -265,6 +276,9 @@ local function sanitize(data: PlayerData): ()
 	if type(data.tutorialDone) ~= "boolean" then
 		data.tutorialDone = false
 	end
+	if data.starterChosen ~= "" and Starters.get(data.starterChosen) == nil then
+		data.starterChosen = ""
+	end
 	for _, field in { "shelfUpdatedAt", "dailyBundleDay" } do
 		local value = (data :: any)[field]
 		if not isCount(value) then
@@ -280,6 +294,13 @@ local function sanitize(data: PlayerData): ()
 	for partId, untilTime in data.tradeLockUntil do
 		if type(partId) ~= "string" or not isCount(untilTime) or untilTime <= now then
 			data.tradeLockUntil[partId] = nil
+		end
+	end
+	-- Eggs that are back already need no entry; dropping them keeps the save small.
+	local eggSeconds = Eggs.respawnHours * 3600
+	for spotName, foundAt in data.eggSpots do
+		if type(spotName) ~= "string" or not isCount(foundAt) or foundAt + eggSeconds <= now then
+			data.eggSpots[spotName] = nil
 		end
 	end
 end
@@ -342,7 +363,6 @@ local function sendSnapshot(player: Player): ()
 		activeCreature = profile.Data.activeCreature,
 		discovered = table.clone(profile.Data.discovered),
 		tutorialDone = profile.Data.tutorialDone,
-		starterCollected = table.clone(profile.Data.starterCollected),
 		funnel = table.clone(profile.Data.funnel),
 		unlockedIslands = table.clone(profile.Data.unlockedIslands),
 		challengesDone = table.clone(profile.Data.challengesDone),
@@ -353,6 +373,8 @@ local function sendSnapshot(player: Player): ()
 		shelfCap = shelfRate(profile.Data) * Shelf.capHours,
 		shelfUpdatedAt = profile.Data.shelfUpdatedAt,
 		tradeLockUntil = table.clone(profile.Data.tradeLockUntil),
+		starterChosen = profile.Data.starterChosen,
+		eggSpots = table.clone(profile.Data.eggSpots),
 	}
 	snapshotRemote:FireClient(player, snapshot)
 end
@@ -530,25 +552,6 @@ function PlayerDataService.buyBundle(
 	return true, nil
 end
 
--- A personal tutorial pickup. Each starter spot gives its part once, and only before the
--- tutorial is over; the caller (PickupService) checks the spot is real and the player is near.
-function PlayerDataService.collectStarterPart(
-	player: Player,
-	spotName: string,
-	partId: string
-): boolean
-	local profile = profiles[player]
-	if profile == nil or not profile:IsActive() then
-		return false
-	end
-	local data = profile.Data
-	if data.tutorialDone or data.starterCollected[spotName] then
-		return false
-	end
-	data.starterCollected[spotName] = true
-	return PlayerDataService.addPart(player, partId, 1)
-end
-
 function PlayerDataService.isTutorialDone(player: Player): boolean
 	local profile = profiles[player]
 	return profile ~= nil and profile.Data.tutorialDone
@@ -560,6 +563,60 @@ local function activeProfile(player: Player): ProfileStore.Profile<PlayerData>?
 		return nil
 	end
 	return profile
+end
+
+-- A new player's starter monster from the stand: stitched and out right away, in one step.
+-- Only before their first creature, so the stand is the first minute of the game and never a
+-- free monster for anyone else.
+function PlayerDataService.chooseStarter(player: Player, starterId: string): boolean
+	local profile = activeProfile(player)
+	local starter = Starters.get(starterId)
+	if profile == nil or starter == nil then
+		return false
+	end
+	local data = profile.Data
+	if data.starterChosen ~= "" or data.tutorialDone or #data.creatures > 0 then
+		return false
+	end
+	settleShelf(data)
+	data.starterChosen = starter.id
+	table.insert(data.creatures, table.clone(starter.loadout))
+	data.activeCreature = #data.creatures
+	for _, partId in Creatures.partIds(starter.loadout) do
+		data.discovered[partId] = true
+	end
+
+	sendSnapshot(player)
+	notifyActiveChanged(player)
+	-- The starter is the player's first part and first creature for the onboarding funnel.
+	PlayerDataService.recordMilestone(player, "FirstPart")
+	PlayerDataService.recordMilestone(player, "FirstStitch")
+	return true
+end
+
+-- Finds an egg: marks the spot as found (it comes back for this player after
+-- Eggs.respawnHours) and gives the server-rolled part, in one step. The caller (EggService)
+-- checks the spot is real and the player is next to it.
+function PlayerDataService.collectEgg(
+	player: Player,
+	spotName: string,
+	partId: string
+): (boolean, string?)
+	local profile = activeProfile(player)
+	if profile == nil then
+		return false, "Your lab is still loading."
+	end
+	local data = profile.Data
+	local foundAt = data.eggSpots[spotName]
+	if foundAt ~= nil and foundAt + Eggs.respawnHours * 3600 > os.time() then
+		return false, "You found this egg already. It comes back later!"
+	end
+	if Parts.get(partId) == nil then
+		return false, "Something went wrong. Try again!"
+	end
+	data.eggSpots[spotName] = os.time()
+	PlayerDataService.addPart(player, partId, 1, true)
+	return true, nil
 end
 
 -- Empties the display shelf into the player's coins. Returns the whole coins paid (0 if none

@@ -4,8 +4,6 @@
 -- Spots are built in Studio as invisible BaseParts:
 --   "PickupSpot" + string attribute "PartId"  -> a glowing part bubble (respawns)
 --   "CoinSpot"                                 -> a spinning coin (respawns)
---   "StarterSpot" + "PartId"                   -> a tutorial part only new players see; the
---                                                 client draws it and asks via CollectStarterPart
 -- Part and coin pickups use the server's own Touched event, so there is no "I collected X"
 -- remote for those; the server still checks the toucher is alive and actually nearby.
 -- Pickups are hidden and reused instead of destroyed, so respawning creates no new instances.
@@ -17,14 +15,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Bundles = require(ReplicatedStorage.Shared.Config.Bundles)
 local Parts = require(ReplicatedStorage.Shared.Config.Parts)
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
-local Remotes = require(ReplicatedStorage.Shared.Remotes)
-local RateLimit = require(script.Parent.Parent.RateLimit)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 local SocialService = require(script.Parent.SocialService)
 
 local PART_SPOT_TAG = "PickupSpot"
 local COIN_SPOT_TAG = "CoinSpot"
-local STARTER_SPOT_TAG = "StarterSpot"
 -- Client code looks for this tag to animate pickups.
 local PICKUP_TAG = "PartPickup"
 
@@ -246,35 +241,6 @@ local function spawnFromTag(folder: Folder, tag: string, kind: Kind): ()
 	end
 end
 
--- Starter spots are looked up by name; names must be unique (e.g. Starter1..Starter3).
-local function findStarterSpot(spotName: string): BasePart?
-	for _, spot in CollectionService:GetTagged(STARTER_SPOT_TAG) do
-		if spot.Name == spotName and spot:IsA("BasePart") then
-			return spot
-		end
-	end
-	return nil
-end
-
-local function onCollectStarterPart(player: Player, spotName: unknown): ()
-	if type(spotName) ~= "string" or not RateLimit.allow(player, "CollectStarterPart", 0.2) then
-		return
-	end
-	local spot = findStarterSpot(spotName)
-	local root = rootOf(player)
-	if spot == nil or root == nil then
-		return
-	end
-	if (root.Position - spot.Position).Magnitude > MAX_COLLECT_DISTANCE + HITBOX_SIZE then
-		return
-	end
-	local partId = spot:GetAttribute("PartId")
-	if type(partId) ~= "string" or Parts.get(partId) == nil then
-		return
-	end
-	PlayerDataService.collectStarterPart(player, spotName, partId)
-end
-
 local PickupService = {}
 
 function PickupService.start(): ()
@@ -287,8 +253,6 @@ function PickupService.start(): ()
 	if #pickups == 0 then
 		warn(`[Mashup Monsters] no pickup spots found (tag parts "{PART_SPOT_TAG}" in Studio)`)
 	end
-
-	Remotes.event("CollectStarterPart").OnServerEvent:Connect(onCollectStarterPart)
 end
 
 return PickupService
