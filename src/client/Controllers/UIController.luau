@@ -20,13 +20,16 @@ local DataController = require(script.Parent.DataController)
 local EggController = require(script.Parent.EggController)
 local IslandController = require(script.Parent.IslandController)
 local PingController = require(script.Parent.PingController)
+local PortalController = require(script.Parent.PortalController)
 local TradeController = require(script.Parent.TradeController)
 local TutorialController = require(script.Parent.TutorialController)
 local BookScreen = require(script.Parent.Parent.UI.BookScreen)
 local BundleScreen = require(script.Parent.Parent.UI.BundleScreen)
 local Hud = require(script.Parent.Parent.UI.Hud)
 local InventoryScreen = require(script.Parent.Parent.UI.InventoryScreen)
+local MapScreen = require(script.Parent.Parent.UI.MapScreen)
 local Panel = require(script.Parent.Parent.UI.Panel)
+local PassScreen = require(script.Parent.Parent.UI.PassScreen)
 local PingMenu = require(script.Parent.Parent.UI.PingMenu)
 local RevealOverlay = require(script.Parent.Parent.UI.RevealOverlay)
 local StarterScreen = require(script.Parent.Parent.UI.StarterScreen)
@@ -64,8 +67,17 @@ function UIController.start(): ()
 	local trade = TradeScreen.create(screen)
 	local tradeInvite = TradeInvite.create(screen)
 	local starter = StarterScreen.create(screen)
-	local panels: { Panel.Panel } =
-		{ inventory.panel, book.panel, stitch.panel, bundle.panel, trade.panel }
+	local map = MapScreen.create(screen, PortalController.travel)
+	local pass = PassScreen.create(screen, PortalController.buyPortalPass)
+	local panels: { Panel.Panel } = {
+		inventory.panel,
+		book.panel,
+		stitch.panel,
+		bundle.panel,
+		trade.panel,
+		map.panel,
+		pass.panel,
+	}
 
 	local function openOnly(target: Panel.Panel): ()
 		-- Nothing else opens over the first-monster pop-up.
@@ -98,6 +110,39 @@ function UIController.start(): ()
 		toggle(book.panel)
 	end)
 	hud.rideButton.Activated:Connect(CreatureController.toggleRide)
+
+	-- Maps and portals. The big map opens from the mini map; at a portal it becomes the travel
+	-- menu if you own the Portal Pass, otherwise the pass pop-up explains it.
+	local function closeAllExcept(keep: Panel.Panel?): ()
+		for _, panel in panels do
+			if panel ~= keep then
+				panel.close()
+			end
+		end
+	end
+	hud.mapButton.Activated:Connect(function()
+		if starter.panel.isOpen() then
+			return
+		end
+		if map.panel.isOpen() then
+			map.panel.close()
+		else
+			closeAllExcept(map.panel)
+			map.openView()
+		end
+	end)
+	PortalController.onPortalOpened(function(fromIsland)
+		if starter.panel.isOpen() then
+			return
+		end
+		if PortalController.hasPortalPass() then
+			closeAllExcept(map.panel)
+			map.openTravel(fromIsland, DataController.get())
+		else
+			closeAllExcept(pass.panel)
+			pass.panel.open()
+		end
+	end)
 
 	-- Machines open their screen from a prompt; walking away closes it.
 	local machinePart: BasePart? = nil

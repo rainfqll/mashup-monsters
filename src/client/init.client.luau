@@ -24,6 +24,7 @@ local START_ORDER: { Controller } = {
 	require(Controllers.FossilController),
 	require(Controllers.TradeController),
 	require(Controllers.PingController),
+	require(Controllers.PortalController),
 }
 
 for _, controller in START_ORDER do

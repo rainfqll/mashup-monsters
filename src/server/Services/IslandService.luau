@@ -2,7 +2,7 @@
 -- IslandService: knows which region ("island" in code and saves) each player is in and keeps
 -- the progression honest. Since the World Upgrade the regions are parts of one connected land.
 --
--- Regions come from Config/Islands; the world pieces (zones, arrival points, travel pads) are
+-- Regions come from Config/Islands; the world pieces (zones, arrival points) are
 -- built in Studio and carry an "Island" id attribute (see that file).
 -- * Ability gates: the first visit to a region needs its ability while riding (Swim across the
 --   river to Lily Lagoon, Super Jump up the cliff to Cliffside Peaks, Glide over the chasm to
@@ -12,8 +12,8 @@
 -- * Water: the client bounces non-swimmers out instantly (CreatureController). This is the
 --   server's own check; it waits a moment so it never fights the client's smoother bounce.
 -- * Falling off an island puts you back where you last stood (no deaths, no long walks).
--- * Travel pads at the lab take you to any unlocked island; a pad on each island goes home.
---   They use the ProximityPrompt's server-side Triggered, so no remote is needed.
+-- * Arrival points ("IslandArrival" parts) are where portal travellers appear (PortalService)
+--   and where a failed gate sends you when there is no safe spot to go back to.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -22,22 +22,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Islands = require(ReplicatedStorage.Shared.Config.Islands)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Water = require(ReplicatedStorage.Shared.Water)
-local RateLimit = require(script.Parent.Parent.RateLimit)
 local CreatureService = require(script.Parent.CreatureService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 
 local ZONE_TAG = "IslandZone"
 local ARRIVAL_TAG = "IslandArrival"
-local PAD_TAG = "TravelPad"
--- Client code styles prompts with this tag (lock state, labels).
-local PAD_PROMPT_TAG = "TravelPrompt"
 local CHECK_INTERVAL = 0.25
 local ZONE_CHECK_INTERVAL = 0.5
 -- Seconds in water without a swimmer before the server steps in.
 local WATER_GRACE = 1
 -- Below this height you have fallen off the islands.
 local VOID_Y = -40
-local PAD_DISTANCE = 16
 -- Characters can't walk up anything steeper (Roblox allows 89 degrees by default). Smooth
 -- terrain turns cliffs and the jump steps into very steep slopes, and those must stay gates.
 local MAX_SLOPE_ANGLE = 50
@@ -177,65 +172,24 @@ local function checkIsland(player: Player, watch: Watch): ()
 	PlayerDataService.recordMilestone(player, "FirstNewIsland")
 end
 
-local function onPadTriggered(pad: BasePart, islandId: string, player: Player): ()
-	if not RateLimit.allow(player, "TravelPad", 1) then
-		return
-	end
-	local _, root = characterParts(player)
-	if root == nil or (root.Position - pad.Position).Magnitude > PAD_DISTANCE then
-		return
-	end
-	local island = Islands.get(islandId)
-	if island == nil then
-		return
-	end
-	if not PlayerDataService.isIslandUnlocked(player, islandId) then
-		local needed = if island.requires ~= nil then Islands.abilityName(island.requires) else "?"
-		notify(player, `Reach {island.displayName} once first! You need {needed}.`)
-		return
-	end
-	local arrival = arrivalFor(islandId)
-	if arrival == nil then
-		warn(`[Mashup Monsters] no {ARRIVAL_TAG} part for island "{islandId}"`)
-		return
-	end
-	CreatureService.teleport(player, arrival)
+local IslandService = {}
+
+-- Where travellers to a region appear (its "IslandArrival" part, a little above), or nil.
+function IslandService.arrivalFor(islandId: string): CFrame?
+	return arrivalFor(islandId)
+end
+
+-- After a teleport: falls and failed gates bring the player back here, not to the old spot.
+function IslandService.setSafeSpot(player: Player, cframe: CFrame): ()
 	local watch = watches[player]
 	if watch ~= nil then
-		watch.lastSafe = arrival
+		watch.lastSafe = cframe
 	end
 end
-
-local function setUpPad(pad: Instance): ()
-	local islandId = pad:GetAttribute("Island")
-	local island = if type(islandId) == "string" then Islands.get(islandId) else nil
-	if not pad:IsA("BasePart") or type(islandId) ~= "string" or island == nil then
-		warn(`[Mashup Monsters] {pad:GetFullName()} is tagged {PAD_TAG} without a valid Island`)
-		return
-	end
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.Name = "TravelPrompt"
-	prompt.ActionText = if islandId == Islands.HOME then "Go home" else "Travel"
-	prompt.ObjectText = island.displayName
-	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 10
-	prompt.RequiresLineOfSight = false
-	prompt:SetAttribute("Island", islandId)
-	prompt.Parent = pad
-	CollectionService:AddTag(prompt, PAD_PROMPT_TAG)
-	prompt.Triggered:Connect(function(player)
-		onPadTriggered(pad, islandId, player)
-	end)
-end
-
-local IslandService = {}
 
 function IslandService.start(): ()
 	noticeRemote = Remotes.event("Notice")
 
-	for _, pad in CollectionService:GetTagged(PAD_TAG) do
-		setUpPad(pad)
-	end
 	if arrivalFor(Islands.HOME) == nil then
 		warn(`[Mashup Monsters] no {ARRIVAL_TAG} part for the home island; falls can't be rescued`)
 	end

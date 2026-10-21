@@ -1,6 +1,6 @@
 --!strict
--- Always-on HUD: Parts and Book buttons (top-left), the Ride button (right side), and a
--- pop-up for short messages. Layout keeps clear of Roblox's own controls: the lower-left
+-- Always-on HUD: Parts and Book buttons (top-left), the mini map and coins (top-right), the
+-- Ride button (right side), and a pop-up for short messages. Layout keeps clear of Roblox's own controls: the lower-left
 -- belongs to the thumbstick, the lower-right to the jump button, the top to the Roblox menu.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
 local Types = require(ReplicatedStorage.Shared.Types)
+local MiniMap = require(script.Parent.MiniMap)
 local Theme = require(script.Parent.Theme)
 
 local TOAST_HOLD_SECONDS = 1.8
@@ -19,6 +20,8 @@ export type Hud = {
 	bookButton: TextButton,
 	pingButton: TextButton,
 	rideButton: TextButton,
+	-- The mini map: tapping it opens the big map.
+	mapButton: TextButton,
 	showPartToast: (definition: Types.PartDefinition) -> (),
 	showMessage: (text: string, color: Color3?) -> (),
 	setRideState: (hasCreature: boolean, riding: boolean) -> (),
@@ -83,11 +86,17 @@ function Hud.create(parent: ScreenGui): Hud
 	ride.Visible = false
 	ride.Parent = parent
 
-	-- Coins, top-right: the one corner Roblox's own controls leave free on every device.
+	-- Top-right, the one corner Roblox's own controls leave free on every device: the mini map
+	-- in the corner and the coins just left of it.
+	local miniMap = MiniMap.create(parent)
 	local coinPill = Instance.new("TextLabel")
 	coinPill.Name = "Coins"
 	coinPill.AnchorPoint = Vector2.new(1, 0)
-	coinPill.Position = UDim2.new(1, -8, 0, 8)
+	local function placeCoins(): ()
+		coinPill.Position = UDim2.new(1, -(16 + miniMap.frame.AbsoluteSize.X), 0, 8)
+	end
+	miniMap.frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeCoins)
+	placeCoins()
 	coinPill.Size = UDim2.fromScale(0.3, 0.09)
 	coinPill.SizeConstraint = Enum.SizeConstraint.RelativeYY
 	coinPill.Text = "0"
@@ -108,7 +117,8 @@ function Hud.create(parent: ScreenGui): Hud
 	local toast = Instance.new("TextLabel")
 	toast.Name = "Toast"
 	toast.AnchorPoint = Vector2.new(0.5, 0)
-	toast.Position = UDim2.fromScale(0.5, 0.08)
+	-- Below the coins, so the two never overlap on narrow phones.
+	toast.Position = UDim2.fromScale(0.5, 0.17)
 	toast.Size = UDim2.fromScale(0.5, 0.11)
 	Theme.text(toast, 30)
 	toast.BackgroundTransparency = 0
@@ -131,7 +141,7 @@ function Hud.create(parent: ScreenGui): Hud
 	local status = Instance.new("TextLabel")
 	status.Name = "Status"
 	status.AnchorPoint = Vector2.new(0.5, 0)
-	status.Position = UDim2.fromScale(0.5, 0.21)
+	status.Position = UDim2.fromScale(0.5, 0.3)
 	status.Size = UDim2.fromScale(0.3, 0.08)
 	Theme.text(status, 28)
 	status.TextColor3 = Theme.colors.lime
@@ -199,6 +209,7 @@ function Hud.create(parent: ScreenGui): Hud
 		bookButton = book,
 		pingButton = ping,
 		rideButton = ride,
+		mapButton = miniMap.button,
 		showPartToast = showPartToast,
 		showMessage = showMessage,
 		setRideState = setRideState,

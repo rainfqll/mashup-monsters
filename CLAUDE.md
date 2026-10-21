@@ -228,6 +228,23 @@ switch on by reaching them the normal way; replace the travel pads), friendly NP
   ~(290,82,100)), Wind Rings + updrafts (ring valley), `WaySigns` (signs + GuideTargets at the dock, the steps
   and the bluff). Home region shows as "Stitch Square". Terrain colors set; animated grass (Terrain.Decoration)
   must be ticked by hand in Studio.
+- W3b DONE: Stitch Square town (`StitchSquare.Town`): monster fountain in the middle (spawn just south of it,
+  facing it), lab tower behind the Stitch Station, 8 cottages ring, 2 market stalls, 12 lamp posts, welcome sign,
+  stepping-stone paths (terrain dirt paths looked jagged at 4-stud voxels, so paths are grass + slate stones).
+- W3c DONE: `tools/scatter_props.luau` plants `Workspace.Nature` (oaks + flower bushes at home, willows + glowing
+  mushrooms in the Lagoon, pines on the Peaks, cacti in the Canyons; ~415 props, trees have invisible trunk
+  colliders). Prop/town templates (AI-generated) live in `ServerStorage.ArtSource.Props`.
+- W3d DONE: storybook lighting (Atmosphere haze, bloom, sun rays, `Storybook` color correction, Terrain clouds),
+  sea extended to 2,600 studs, a waterfall where the plateau stream meets the cliff, and `AmbienceController`
+  (client: pollen/fireflies/snow/dust around the camera + a color mood per region).
+- W3e DONE: portals (`Workspace.Portals`: Stitch Square west side, Lagoon bank, Peaks steps top, Canyons floor;
+  the glowing `Gate` part is tagged `Portal` with an Island attribute, `Arrival_*` parts tagged `IslandArrival`).
+  Travel needs the Portal Pass game pass (`Config/Monetization.portalPassId`, 0 = not created yet: the pop-up says
+  "Coming soon"; Studio test: ServerStorage attribute `DevPortalPass` = true). Server: PassService (ownership,
+  PassState), PortalService (PortalOpened, PortalTravel: pass + nearby portal + destination already reached).
+  Client: PortalController, round mini map (top-right, coins moved left of it, toasts moved down) and the big
+  map (`MapScreen`, view mode from the mini map, travel mode at portals), drawn from `Config/WorldMap` data.
+  Travel pads and their code are gone.
 - W2c DONE (code; hands-on check pending): loose part pickups removed everywhere (spots in
   `ServerStorage.WorldBackup.OldPickupSpots`); 12 personal eggs (`EggSpots` folders, tag `EggSpot`, attributes Island +
   Tier, Treasure eggs also PartId): per island 2 Plain, 1 Shiny (hard spot), 1 Treasure holding the next island's key

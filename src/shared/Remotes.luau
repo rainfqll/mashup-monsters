@@ -29,6 +29,13 @@ local DEFINITIONS: { [string]: RemoteKind } = {
 	SetActiveCreature = "Event",
 	-- Client -> server: () hop on or off your creature. The server checks distance.
 	ToggleRide = "Event",
+	-- Server -> client: (portalPass: boolean) whether you own the Portal Pass (PassService).
+	PassState = "Event",
+	-- Server -> client: (fromIsland) you pressed Travel at a portal: show the travel map.
+	PortalOpened = "Event",
+	-- Client -> server: (destination island id) travel there. Needs the Portal Pass, a portal
+	-- close by, and a destination you have reached before.
+	PortalTravel = "Event",
 	-- Client -> server: (loadout) build your first monster from the starter part sets. The server
 	-- checks every slot and that you have no monster yet. Returns (ok: boolean, message: string?).
 	CreateStarter = "Function",
