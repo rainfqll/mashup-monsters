@@ -25,25 +25,25 @@ export type Portal = {
 local REGIONS: { RegionArea } = {
 	{
 		island = "MeadowIsle",
-		color = Color3.fromRGB(110, 185, 75),
+		color = Color3.fromRGB(128, 152, 92),
 		area = { center = Vector2.new(-125, 0), size = Vector2.new(750, 420) },
 		label = Vector2.new(0, -45),
 	},
 	{
 		island = "LilyLagoon",
-		color = Color3.fromRGB(70, 160, 110),
+		color = Color3.fromRGB(96, 132, 104),
 		area = { center = Vector2.new(-116, 395), size = Vector2.new(728, 250) },
 		label = Vector2.new(-60, 400),
 	},
 	{
 		island = "CliffsidePeaks",
-		color = Color3.fromRGB(140, 140, 155),
+		color = Color3.fromRGB(132, 130, 132),
 		area = { center = Vector2.new(387, 145), size = Vector2.new(266, 710) },
 		label = Vector2.new(390, 120),
 	},
 	{
 		island = "WindyCanyons",
-		color = Color3.fromRGB(220, 150, 90),
+		color = Color3.fromRGB(182, 124, 84),
 		area = { center = Vector2.new(0, -404), size = Vector2.new(960, 232) },
 		label = Vector2.new(0, -430),
 	},

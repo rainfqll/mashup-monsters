@@ -20,6 +20,8 @@ local Theme = require(script.Parent.Theme)
 
 local BOTTOM_HEIGHT = 52
 local ARROW_WIDTH = 48
+-- The 3D preview is rebuilt this long after the last tap, so flicking through parts stays smooth.
+local PREVIEW_DELAY = 0.15
 local SLOT_NAMES: { [Types.Slot]: string } = {
 	Head = "Head",
 	Body = "Body",
@@ -33,7 +35,8 @@ export type StarterScreen = {
 	onCreated: (listener: () -> ()) -> (),
 }
 
-type Row = { card: TextButton, iconHolder: Frame, name: TextLabel }
+-- `icons` holds one ready-made 3D picture per option; flipping only changes which one shows.
+type Row = { card: TextButton, iconHolder: Frame, name: TextLabel, icons: { [string]: GuiObject } }
 
 local StarterScreen = {}
 
@@ -128,23 +131,42 @@ function StarterScreen.create(parent: ScreenGui): StarterScreen
 
 	local rows: { [Types.Slot]: Row } = {}
 
+	-- The preview is the slow part (it builds a whole creature), so it waits until the taps
+	-- stop and skips work when nothing changed.
+	local previewToken = 0
+	local previewedKey = ""
+	local function schedulePreview(loadout: Types.Loadout): ()
+		previewToken += 1
+		local token = previewToken
+		task.delay(PREVIEW_DELAY, function()
+			local key = `{loadout.Head}/{loadout.Body}/{loadout.Legs}/{loadout.Back}`
+			if token == previewToken and key ~= previewedKey then
+				previewedKey = key
+				preview.show(loadout)
+			end
+		end)
+	end
+
 	local function refresh(): ()
 		local loadout = currentLoadout()
 		for _, slot in Creatures.SLOTS do
 			local row = rows[slot]
-			local definition =
-				Parts.get(Starters.options[slot][picks[slot]]) :: Types.PartDefinition
+			local partId = Starters.options[slot][picks[slot]]
+			local definition = Parts.get(partId) :: Types.PartDefinition
 			row.name.Text = definition.displayName
-			for _, child in row.iconHolder:GetChildren() do
-				child:Destroy()
+			if row.icons[partId] == nil then
+				local icon = PartIcon.create(partId)
+				if icon ~= nil then
+					icon.Size = UDim2.fromScale(1, 1)
+					icon.Parent = row.iconHolder
+					row.icons[partId] = icon
+				end
 			end
-			local icon = PartIcon.create(definition.id)
-			if icon ~= nil then
-				icon.Size = UDim2.fromScale(1, 1)
-				icon.Parent = row.iconHolder
+			for id, icon in row.icons do
+				icon.Visible = id == partId
 			end
 		end
-		preview.show(loadout)
+		schedulePreview(loadout)
 
 		local summary = Creatures.summarize(loadout)
 		creatureName.Text = summary.name
@@ -162,7 +184,7 @@ function StarterScreen.create(parent: ScreenGui): StarterScreen
 		info.Text = if ready
 			then `Can: {table.concat(can, " + ")}\nGoes to: {table.concat(opens, ", ")}`
 			else "Can't travel yet! Pick Ember Wings, a Tide Tail or Thunder Legs."
-		info.TextColor3 = if ready then Theme.colors.text else Color3.fromRGB(255, 200, 80)
+		info.TextColor3 = if ready then Theme.colors.text else Theme.colors.gold
 		createButton.BackgroundColor3 = if ready then Theme.colors.limeDark else Theme.colors.card
 		createButton.AutoButtonColor = false
 		createButton.Active = ready
@@ -239,7 +261,7 @@ function StarterScreen.create(parent: ScreenGui): StarterScreen
 		card.Activated:Connect(function()
 			step(slot, 1)
 		end)
-		rows[slot] = { card = card, iconHolder = iconHolder, name = name }
+		rows[slot] = { card = card, iconHolder = iconHolder, name = name, icons = {} }
 	end
 
 	shuffleButton.Activated:Connect(function()

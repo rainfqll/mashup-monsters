@@ -65,7 +65,7 @@ function BookScreen.create(parent: ScreenGui): BookScreen
 	Theme.text(progress, 26)
 	progress.BackgroundTransparency = 0
 	progress.BackgroundColor3 = Theme.colors.limeDark
-	Theme.corner(progress, UDim.new(0.5, 0))
+	Theme.corner(progress, UDim.new(0, 4))
 	Theme.outline(progress, 3)
 	progress.Parent = panel.frame
 

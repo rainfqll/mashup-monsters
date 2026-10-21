@@ -20,7 +20,7 @@ Explore colorful floating islands, collect weird creature parts (duck heads, fro
 
 ## 3. Target audience and hard requirements
 
-- **All ages**, especially kids 6 to 14. The game must qualify for a Minimal (or at most Mild) content maturity label: cartoon style only, no realistic violence or blood, no scary content, no crude humor, no gambling visuals (no slot machines, roulette, casino theming).
+- **All ages**, especially kids 6 to 14. The game must qualify for a Minimal (or at most Mild) content maturity label: no realistic violence or blood, no scary content, no crude humor, no gambling visuals (no slot machines, roulette, casino theming). (Art style: semi-realistic since the Realism Upgrade, see 4.9; friendly, never scary.)
 - **Mobile first.** Most players are on phones. Every screen must work on a small landscape phone, then tablet, PC, and controller.
 - **Works without chat.** Young players often cannot chat. Co-op must work through pings, emotes, and obvious visual cues.
 - **Solo complete, co-op better.** A solo player can do everything. Friends make it faster, funnier, and unlock extra rewards.
@@ -109,6 +109,17 @@ Explore colorful floating islands, collect weird creature parts (duck heads, fro
   Policy: any Robux purchase that changes a random outcome (the luck boost) counts as a paid random item: show the
   exact odds before buying and hide it where PolicyService says paid random items are restricted. No gambling
   visuals. Robux products come with the monetization work (spec 4.7), after the gameplay is fun.
+
+### 4.9 Realism Upgrade (agreed October 2026; overrides "cute/storybook" look notes)
+
+- **Semi-realistic look** for the world, the monsters and the menus: natural colors and light, real-looking
+  textures, detailed models, lots of nature detail (like the top Roblox adventure/creature games), still
+  friendly and never scary. Must keep running well on phones (instanced props, streaming, sensible detail).
+- **Menus:** an adventure-game style instead of bubbly: darker panels, thin gold edges, smaller corners,
+  cleaner fonts. Big touch targets stay.
+- **Monsters:** remade in a semi-realistic creature style that matches the world; mix-and-match works the same.
+- **Day/night cycle** (about 20 minutes per day, nights bright enough to play) and **weather** per region
+  (rain, fog, snow on the peaks, dust in the canyons).
 
 ## 5. Technical setup (propose, then wait for my OK)
 

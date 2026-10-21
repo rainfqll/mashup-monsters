@@ -25,7 +25,7 @@ function CreaturePreview.create(parent: GuiObject): Preview
 	local viewport = Instance.new("ViewportFrame")
 	viewport.Name = "Preview"
 	viewport.BackgroundTransparency = 1
-	viewport.Ambient = Color3.fromRGB(170, 160, 190)
+	viewport.Ambient = Color3.fromRGB(175, 170, 160)
 	viewport.LightColor = Color3.fromRGB(255, 255, 255)
 	viewport.LightDirection = Vector3.new(-1, -2, -1)
 	viewport.Parent = parent

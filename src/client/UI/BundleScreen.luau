@@ -73,7 +73,7 @@ function BundleScreen.create(
 	price.Size = UDim2.new(1, -12, 0.2, 0)
 	price.Text = `{Bundles.price} coins`
 	Theme.text(price, 30)
-	price.TextColor3 = Color3.fromRGB(255, 210, 60)
+	price.TextColor3 = Theme.colors.coin
 	price.Parent = eggArea
 
 	-- Right: chances and the Open button.
@@ -146,9 +146,7 @@ function BundleScreen.create(
 			elseif free then "Open your FREE bundle!"
 			elseif canAfford then `Open! ({Bundles.price} coins)`
 			else `Need {Bundles.price - coins} more coins`
-		openButton.BackgroundColor3 = if ready
-			then Theme.colors.lime
-			else Color3.fromRGB(110, 100, 130)
+		openButton.BackgroundColor3 = if ready then Theme.colors.lime else Theme.colors.card
 		openButton.Active = ready
 	end
 
@@ -170,7 +168,7 @@ function BundleScreen.create(
 				local reason = if ok and type(message) == "string"
 					then message
 					else "Something went wrong. Try again!"
-				showMessage(reason, Color3.fromRGB(230, 80, 110))
+				showMessage(reason, Theme.colors.danger)
 				render()
 				return
 			end

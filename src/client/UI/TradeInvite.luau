@@ -39,7 +39,7 @@ function TradeInvite.create(parent: ScreenGui): TradeInvite
 	no.AnchorPoint = Vector2.new(1, 0)
 	no.Position = UDim2.new(1, -14, 1, -62)
 	no.Size = UDim2.new(0.5, -21, 0, 52)
-	no.BackgroundColor3 = Color3.fromRGB(230, 80, 110)
+	no.BackgroundColor3 = Theme.colors.danger
 	no.ZIndex = 21
 	no.Parent = card
 

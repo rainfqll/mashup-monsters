@@ -31,14 +31,14 @@ function PassScreen.create(parent: ScreenGui, onBuy: () -> ()): PassScreen
 	icon.Position = UDim2.fromScale(0.5, 0)
 	icon.Size = UDim2.fromScale(0.34, 0.34)
 	icon.SizeConstraint = Enum.SizeConstraint.RelativeYY
-	icon.BackgroundColor3 = Color3.fromRGB(160, 90, 255)
+	icon.BackgroundColor3 = Color3.fromRGB(110, 76, 170)
 	Theme.corner(icon, UDim.new(0.5, 0))
-	Theme.outline(icon, 6, Theme.colors.lime)
+	Theme.outline(icon, 6, Theme.colors.gold)
 	local inner = Instance.new("Frame")
 	inner.AnchorPoint = Vector2.new(0.5, 0.5)
 	inner.Position = UDim2.fromScale(0.5, 0.5)
 	inner.Size = UDim2.fromScale(0.5, 0.5)
-	inner.BackgroundColor3 = Color3.fromRGB(230, 210, 255)
+	inner.BackgroundColor3 = Color3.fromRGB(200, 186, 230)
 	Theme.corner(inner, UDim.new(0.5, 0))
 	inner.Parent = icon
 	icon.Parent = panel.body

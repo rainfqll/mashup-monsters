@@ -34,14 +34,14 @@ local function makeSign(part: BasePart): Sign
 	bar.Position = UDim2.fromScale(0.1, 0.62)
 	bar.Size = UDim2.fromScale(0.8, 0.3)
 	bar.BackgroundColor3 = Theme.colors.purpleDeep
-	Theme.corner(bar, UDim.new(0.5, 0))
+	Theme.corner(bar, UDim.new(0, 4))
 	Theme.outline(bar, 3)
 	bar.Parent = billboard
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(0, 1)
 	fill.BackgroundColor3 = Theme.colors.lime
-	Theme.corner(fill, UDim.new(0.5, 0))
+	Theme.corner(fill, UDim.new(0, 4))
 	fill.Parent = bar
 
 	billboard.Parent = part

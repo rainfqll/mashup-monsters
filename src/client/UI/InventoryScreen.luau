@@ -41,7 +41,7 @@ function InventoryScreen.create(parent: ScreenGui): InventoryScreen
 	Theme.text(coins, 26)
 	coins.BackgroundTransparency = 0
 	coins.BackgroundColor3 = Theme.colors.limeDark
-	Theme.corner(coins, UDim.new(0.5, 0))
+	Theme.corner(coins, UDim.new(0, 6))
 	Theme.outline(coins, 3)
 	coins.Parent = panel.frame
 

@@ -23,7 +23,7 @@ function PartIcon.create(partId: string): ViewportFrame?
 	local viewport = Instance.new("ViewportFrame")
 	viewport.Name = "Icon"
 	viewport.BackgroundTransparency = 1
-	viewport.Ambient = Color3.fromRGB(225, 215, 240)
+	viewport.Ambient = Color3.fromRGB(215, 208, 195)
 	viewport.LightColor = Color3.new(1, 1, 1)
 	viewport.LightDirection = Vector3.new(-1, -2, -1)
 

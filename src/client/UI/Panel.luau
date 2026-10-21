@@ -1,6 +1,6 @@
 --!strict
--- The standard pop-up panel every screen uses: dark purple box, title, big close button,
--- pop-in animation, and controller focus kept inside while it is open. Screens put their
+-- The standard pop-up panel every screen uses: dark slate box with a thin gold edge, a serif
+-- title, a big close button, a quick fade-in, and controller focus kept inside while it is open. Screens put their
 -- content in `body` (the area under the header).
 
 local GuiService = game:GetService("GuiService")
@@ -14,7 +14,7 @@ local Panel = {}
 Panel.HEADER_HEIGHT = 56
 Panel.GAP = 10
 
-local OPEN_INFO = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local OPEN_INFO = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 export type Panel = {
 	frame: Frame,
@@ -51,11 +51,13 @@ function Panel.create(parent: ScreenGui, name: string, titleText: string): Panel
 	frame.Position = UDim2.fromScale(0.5, 0.5)
 	frame.Size = UDim2.fromScale(0.8, 0.86)
 	frame.BackgroundColor3 = Theme.colors.purpleDeep
+	frame.BackgroundTransparency = 0.04
 	frame.Visible = false
 	-- Keeps controller focus inside the panel while it is open.
 	frame.SelectionGroup = true
-	Theme.corner(frame, UDim.new(0, 20))
-	Theme.outline(frame, 5)
+	Theme.corner(frame, UDim.new(0, 10))
+	Theme.outline(frame, 4, Theme.colors.gold)
+	Theme.shade(frame)
 	local sizeLimit = Instance.new("UISizeConstraint")
 	sizeLimit.MaxSize = Vector2.new(760, 560)
 	sizeLimit.Parent = frame
@@ -73,14 +75,14 @@ function Panel.create(parent: ScreenGui, name: string, titleText: string): Panel
 	title.Size = UDim2.new(0.45, 0, 0, headerHeight)
 	title.Text = titleText
 	title.TextXAlignment = Enum.TextXAlignment.Left
-	Theme.text(title, 36)
+	Theme.title(title, 34)
 	title.Parent = frame
 
 	local closeButton = Theme.button("Close", "X", 32)
 	closeButton.AnchorPoint = Vector2.new(1, 0)
 	closeButton.Position = UDim2.fromScale(1, 0)
 	closeButton.Size = UDim2.fromOffset(headerHeight, headerHeight)
-	closeButton.BackgroundColor3 = Color3.fromRGB(230, 80, 110)
+	closeButton.BackgroundColor3 = Theme.colors.danger
 	closeButton.Parent = frame
 
 	local body = Instance.new("Frame")
@@ -96,7 +98,7 @@ function Panel.create(parent: ScreenGui, name: string, titleText: string): Panel
 		end
 		isOpen = true
 		frame.Visible = true
-		scale.Scale = 0.85
+		scale.Scale = 0.96
 		TweenService:Create(scale, OPEN_INFO, { Scale = 1 }):Play()
 		for _, listener in openedListeners do
 			listener()

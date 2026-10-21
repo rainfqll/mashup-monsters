@@ -247,7 +247,7 @@ function UIController.start(): ()
 
 	local pingMenu = PingMenu.create(hud.pingButton, PingController.ping, function(emoteId)
 		if not PingController.emote(emoteId) then
-			hud.showMessage("Hop off your creature to do that!", Color3.fromRGB(60, 150, 255))
+			hud.showMessage("Hop off your creature to do that!", Theme.colors.info)
 		end
 	end)
 	hud.pingButton.Activated:Connect(pingMenu.toggle)
@@ -260,7 +260,7 @@ function UIController.start(): ()
 	end, false, Enum.KeyCode.G, Enum.KeyCode.ButtonL1)
 	Remotes.event("Notice").OnClientEvent:Connect(function(text: unknown)
 		if type(text) == "string" then
-			hud.showMessage(text, Color3.fromRGB(255, 200, 60))
+			hud.showMessage(text, Theme.colors.gold)
 		end
 	end)
 
@@ -335,7 +335,7 @@ function UIController.start(): ()
 	end
 	CreatureController.onStateChanged(syncRide)
 	CreatureController.onMessage(function(message)
-		hud.showMessage(message, Color3.fromRGB(60, 150, 255))
+		hud.showMessage(message, Theme.colors.info)
 	end)
 	syncRide()
 

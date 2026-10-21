@@ -9,7 +9,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local PartIcon = require(script.Parent.PartIcon)
 local Theme = require(script.Parent.Theme)
 
-local LOCKED_COLOR = Color3.fromRGB(60, 40, 90)
+local LOCKED_COLOR = Color3.fromRGB(28, 30, 38)
 
 export type Options = {
 	count: number?,
@@ -98,7 +98,7 @@ function PartCard.create(definition: Types.PartDefinition, options: Options?): G
 		Theme.text(badge, 20)
 		badge.BackgroundTransparency = 0
 		badge.BackgroundColor3 = Theme.colors.limeDark
-		Theme.corner(badge, UDim.new(0.5, 0))
+		Theme.corner(badge, UDim.new(0, 6))
 		Theme.outline(badge, 2)
 		badge.Parent = card
 	end

@@ -112,7 +112,7 @@ function RevealOverlay.create(parent: ScreenGui): RevealOverlay
 	root.Size = UDim2.fromScale(1, 1)
 	root.Text = ""
 	root.AutoButtonColor = false
-	root.BackgroundColor3 = Color3.fromRGB(20, 10, 35)
+	root.BackgroundColor3 = Color3.fromRGB(8, 10, 14)
 	root.BackgroundTransparency = 0.3
 	root.ZIndex = 50
 	root.Visible = false

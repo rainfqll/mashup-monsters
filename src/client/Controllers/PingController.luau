@@ -81,7 +81,7 @@ local function showMarker(
 	Theme.text(bubble, 30)
 	bubble.BackgroundTransparency = 0
 	bubble.BackgroundColor3 = info.color
-	Theme.corner(bubble, UDim.new(0.5, 0))
+	Theme.corner(bubble, UDim.new(0, 8))
 	Theme.outline(bubble, 3)
 	local scale = Instance.new("UIScale")
 	scale.Scale = 0

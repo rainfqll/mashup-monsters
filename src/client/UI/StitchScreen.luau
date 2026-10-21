@@ -263,7 +263,7 @@ function StitchScreen.create(parent: ScreenGui, showMessage: (string, Color3?) -
 		unstitchButton.AnchorPoint = Vector2.new(1, 1)
 		unstitchButton.Position = UDim2.new(1, -6, 1, -6)
 		unstitchButton.Size = UDim2.new(0.5, -9, 0, LEVER_HEIGHT - 8)
-		unstitchButton.BackgroundColor3 = Color3.fromRGB(150, 60, 110)
+		unstitchButton.BackgroundColor3 = Theme.colors.danger
 		unstitchButton.Parent = frame
 
 		monsterCards[index] = {
@@ -341,7 +341,7 @@ function StitchScreen.create(parent: ScreenGui, showMessage: (string, Color3?) -
 		local full = snapshot ~= nil and #snapshot.creatures >= Creatures.MAX_SAVED
 		local ready = not isEmpty(selection) and not full and not stitching
 		lever.Text = if stitching then "..." elseif full then "Lab full" else "STITCH!"
-		lever.BackgroundColor3 = if ready then Theme.colors.lime else Color3.fromRGB(110, 100, 130)
+		lever.BackgroundColor3 = if ready then Theme.colors.lime else Theme.colors.card
 		lever.Active = ready
 
 		local shouldPulse = leverHint and ready
@@ -484,7 +484,7 @@ function StitchScreen.create(parent: ScreenGui, showMessage: (string, Color3?) -
 				local reason = if ok and type(message) == "string"
 					then message
 					else "Something went wrong. Try again!"
-				showMessage(reason, Color3.fromRGB(230, 80, 110))
+				showMessage(reason, Theme.colors.danger)
 				renderStitchTab()
 			end
 		end)

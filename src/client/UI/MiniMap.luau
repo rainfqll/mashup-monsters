@@ -32,7 +32,7 @@ function MiniMap.create(parent: GuiObject): MiniMap
 	frame.Position = UDim2.new(1, -8, 0, 8)
 	frame.Size = UDim2.fromScale(0.28, 0.28)
 	frame.SizeConstraint = Enum.SizeConstraint.RelativeYY
-	frame.BackgroundColor3 = Color3.fromRGB(56, 150, 205)
+	frame.BackgroundColor3 = Color3.fromRGB(64, 98, 122)
 	Theme.corner(frame, UDim.new(0.5, 0))
 	local limit = Instance.new("UISizeConstraint")
 	limit.MinSize = Vector2.new(84, 84)

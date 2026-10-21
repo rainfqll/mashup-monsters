@@ -10,12 +10,13 @@ local Islands = require(ReplicatedStorage.Shared.Config.Islands)
 local WorldMap = require(ReplicatedStorage.Shared.Config.WorldMap)
 local Theme = require(script.Parent.Theme)
 
-local OCEAN = Color3.fromRGB(56, 150, 205)
-local SAND = Color3.fromRGB(232, 208, 150)
-local RIVER = Color3.fromRGB(70, 175, 225)
-local CHASM = Color3.fromRGB(40, 24, 60)
-local SQUARE = Color3.fromRGB(190, 182, 200)
-local PORTAL = Color3.fromRGB(160, 90, 255)
+-- An old explorer's map: muted sea, parchment land, soft region colors.
+local OCEAN = Color3.fromRGB(64, 98, 122)
+local SAND = Color3.fromRGB(214, 196, 150)
+local RIVER = Color3.fromRGB(92, 140, 168)
+local CHASM = Color3.fromRGB(38, 34, 34)
+local SQUARE = Color3.fromRGB(170, 162, 150)
+local PORTAL = Color3.fromRGB(120, 86, 190)
 
 export type MapView = {
 	canvas: Frame,

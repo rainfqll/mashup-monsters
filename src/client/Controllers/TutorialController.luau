@@ -23,7 +23,7 @@ export type Step = "MakeStarter" | "Ride" | "GoToIsland"
 
 local GUIDE_TARGET_TAG = "GuideTarget"
 local MARKER_HEIGHT = 7
-local GUIDE_COLOR = Color3.fromRGB(150, 230, 50)
+local GUIDE_COLOR = Color3.fromRGB(230, 190, 90)
 
 local player = Players.LocalPlayer
 
@@ -124,8 +124,8 @@ local function buildGuide(): ()
 	headCorner.CornerRadius = UDim.new(0.5, 0)
 	headCorner.Parent = head
 	local headStroke = Instance.new("UIStroke")
-	headStroke.Thickness = 4
-	headStroke.Color = Color3.fromRGB(30, 15, 50)
+	headStroke.Thickness = 3
+	headStroke.Color = Color3.fromRGB(20, 20, 26)
 	headStroke.Parent = head
 	head.ZIndex = 2
 	head.Parent = markerGui
@@ -149,8 +149,8 @@ local function buildGuide(): ()
 	tip.Rotation = 45
 	tip.BackgroundColor3 = GUIDE_COLOR
 	local tipStroke = Instance.new("UIStroke")
-	tipStroke.Thickness = 4
-	tipStroke.Color = Color3.fromRGB(30, 15, 50)
+	tipStroke.Thickness = 3
+	tipStroke.Color = Color3.fromRGB(20, 20, 26)
 	tipStroke.Parent = tip
 	tip.ZIndex = 1
 	tip.Parent = markerGui

@@ -38,11 +38,11 @@ local function sideButton(name: string, text: string, color: Color3): (TextButto
 	button.BackgroundColor3 = color
 	local corner = button:FindFirstChildOfClass("UICorner")
 	if corner ~= nil then
-		corner.CornerRadius = UDim.new(0.25, 0)
+		corner.CornerRadius = UDim.new(0, 10)
 	end
 	local stroke = button:FindFirstChild("Border") :: UIStroke?
 	if stroke ~= nil then
-		stroke.Thickness = 4
+		stroke.Color = Theme.colors.gold
 	end
 	local limit = Instance.new("UISizeConstraint")
 	limit.MinSize = Vector2.new(Theme.MIN_TOUCH + 8, Theme.MIN_TOUCH + 8)
@@ -71,11 +71,12 @@ function Hud.create(parent: ScreenGui): Hud
 	bag.Parent = leftColumn
 
 	local book = sideButton("BookButton", "Book", Theme.colors.purple)
+	-- Ordinary buttons are slate; only the main action keeps the green.
 	book.LayoutOrder = 2
 	book.Parent = leftColumn
 
 	-- Pings and emotes: talking without chat.
-	local ping = sideButton("PingButton", "Ping", Color3.fromRGB(255, 170, 50))
+	local ping = sideButton("PingButton", "Ping", Theme.colors.purple)
 	ping.LayoutOrder = 3
 	ping.Parent = leftColumn
 
@@ -101,10 +102,11 @@ function Hud.create(parent: ScreenGui): Hud
 	coinPill.SizeConstraint = Enum.SizeConstraint.RelativeYY
 	coinPill.Text = "0"
 	Theme.text(coinPill, 28)
-	coinPill.BackgroundTransparency = 0
-	coinPill.BackgroundColor3 = Color3.fromRGB(255, 200, 40)
-	Theme.corner(coinPill, UDim.new(0.5, 0))
-	Theme.outline(coinPill, 4)
+	coinPill.TextColor3 = Theme.colors.coin
+	coinPill.BackgroundTransparency = 0.1
+	coinPill.BackgroundColor3 = Theme.colors.purpleDeep
+	Theme.corner(coinPill, UDim.new(0, 8))
+	Theme.outline(coinPill, 4, Theme.colors.gold)
 	local coinLimit = Instance.new("UISizeConstraint")
 	coinLimit.MinSize = Vector2.new(96, 36)
 	coinLimit.MaxSize = Vector2.new(170, 56)
@@ -121,10 +123,10 @@ function Hud.create(parent: ScreenGui): Hud
 	toast.Position = UDim2.fromScale(0.5, 0.17)
 	toast.Size = UDim2.fromScale(0.5, 0.11)
 	Theme.text(toast, 30)
-	toast.BackgroundTransparency = 0
+	toast.BackgroundTransparency = 0.08
 	toast.BackgroundColor3 = Theme.colors.purpleDeep
 	toast.Visible = false
-	Theme.corner(toast, UDim.new(0.5, 0))
+	Theme.corner(toast, UDim.new(0, 8))
 	local toastStroke = Theme.outline(toast, 5)
 	local toastLimit = Instance.new("UISizeConstraint")
 	toastLimit.MaxSize = Vector2.new(520, 70)

@@ -95,7 +95,7 @@ local function makeSign(shelf: BasePart): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	Theme.text(label, 30)
-	label.TextColor3 = Color3.fromRGB(255, 210, 60)
+	label.TextColor3 = Theme.colors.coin
 	label.Parent = billboard
 	billboard.Parent = shelf
 	return label
