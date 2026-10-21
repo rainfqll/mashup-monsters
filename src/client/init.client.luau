@@ -16,6 +16,8 @@ local START_ORDER: { Controller } = {
 	-- After Data and Creature controllers: the tutorial step is worked out from both.
 	require(Controllers.TutorialController),
 	require(Controllers.IslandController),
+	-- After IslandController: the ambience follows the region you are in.
+	require(Controllers.AmbienceController),
 	require(Controllers.ChallengeController),
 	require(Controllers.ShelfController),
 	require(Controllers.EggController),

@@ -95,6 +95,11 @@ end
 
 local IslandController = {}
 
+-- The region (island id) you are in now, or nil before the first check or between regions.
+function IslandController.current(): string?
+	return currentIsland
+end
+
 -- Called with the island's display name each time you arrive on a different island.
 function IslandController.onIslandEntered(listener: (displayName: string) -> ()): ()
 	table.insert(listeners, listener)
